@@ -1,5 +1,16 @@
 # Changelog
 
+## Release (2026-05-27)
+
+* ember.nvp 0.3.0 (minor)
+
+#### :rocket: Enhancement
+* `ember.nvp`
+  * [#24](https://github.com/NullVoxPopuli/ember.nvp/pull/24) Add .gitignore to git layer ([@tcjr](https://github.com/tcjr))
+
+#### Committers: 1
+- Tom Carter ([@tcjr](https://github.com/tcjr))
+
 ## Release (2026-05-15)
 
 * ember.nvp 0.2.1 (patch)
