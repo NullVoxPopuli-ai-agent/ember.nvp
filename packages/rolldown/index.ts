@@ -1,4 +1,5 @@
 import { emberBabel, type BabelOptions } from "./src/babel.ts";
+import { emberBundleResolver } from "./src/bundle-resolver.ts";
 import { emberConfig } from "./src/config.ts";
 import { emberExternals } from "./src/externals.ts";
 import { emberIsolatedDeclarations } from "./src/isolated-declarations.ts";
@@ -6,6 +7,22 @@ import { emberTransform } from "./src/transform.ts";
 import type { RolldownPluginLike } from "./src/plugin-like.ts";
 
 interface Config {
+  /**
+   * Build a self-contained package instead of a library.
+   *
+   * `false` (the default) builds a library for Ember apps: ember, the
+   * package's dependencies, and its peerDependencies stay external, and
+   * templates are shipped as `precompileTemplate` calls for the consuming
+   * app to compile.
+   *
+   * `true` builds an artifact that runs on any page, such as a custom
+   * element: ember-source (the `dev` or `prod` build, following
+   * `NODE_ENV`), `@glimmer/component`, `decorator-transforms`, and every
+   * other dependency are bundled in, and templates are compiled to the
+   * wire format with that same ember-source. Declarations are unaffected:
+   * they keep importing types by name.
+   */
+  bundle?: boolean;
   /**
    * Options for the babel step; see `BabelOptions`.
    */
@@ -27,6 +44,8 @@ interface Config {
  *   declaration pipeline that can see compiled template-tag modules).
  * - `emberExternals()` — keeps your dependencies, peerDependencies, and the
  *   ember virtual packages external, so consuming apps resolve them.
+ * - `emberBundleResolver()` — bundle mode only: resolves the ember virtual
+ *   packages to ember-source's own dist files so they can be bundled.
  * - `emberTransform()` — preprocesses `<template>` via content-tag and maps
  *   `.gts`/`.gjs` to `.ts`/`.js` so rolldown can understand them.
  * - `emberBabel()` — runs babel (template compilation, decorators, type
@@ -49,11 +68,14 @@ interface Config {
  * ```
  */
 export function ember(config: Config = {}): RolldownPluginLike[] {
+  const bundle = config.bundle ?? false;
+
   return [
-    emberConfig(),
+    emberConfig({ bundle }),
     emberIsolatedDeclarations(),
-    emberExternals(),
+    emberExternals({ bundle }),
+    ...(bundle ? [emberBundleResolver()] : []),
     emberTransform(),
-    emberBabel(config.babel),
+    emberBabel({ ...config.babel, bundle }),
   ];
 }

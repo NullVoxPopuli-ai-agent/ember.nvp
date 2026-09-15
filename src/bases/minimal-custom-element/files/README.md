@@ -6,6 +6,10 @@ and built with
 [`@nullvoxpopuli/ember-rolldown`](https://github.com/NullVoxPopuli/ember.nvp/tree/main/packages/rolldown)
 and [tsdown](https://tsdown.dev/).
 
+The build runs in bundle mode (`ember({ bundle: true })`), so `dist/` contains
+ember-source and every other dependency. The page that uses the element needs
+nothing else.
+
 ## Usage
 
 Import the `register` entry once. It defines the `<minimal-custom-element>` tag.
@@ -55,7 +59,8 @@ pnpm start
 - `src/register.ts` defines the tag. Consumers import this file for its side effect.
 - `src/index.ts` is the public entry point. It exports the element class and the
   component.
-- `dist/` is the built output that gets published (git-ignored).
+- `dist/` is the built output that gets published (git-ignored). `index.js` and
+  `register.js` share one chunk that holds the element, the component, and ember.
 
 ### Reactive attributes
 
@@ -71,6 +76,12 @@ on the next render. To add an attribute:
 Declarations are emitted with
 [isolated declarations](https://www.typescriptlang.org/tsconfig/#isolatedDeclarations),
 so every exported value needs an explicit type annotation.
+
+### Development or production ember
+
+`NODE_ENV=development pnpm build` bundles the development build of ember-source,
+with assertions and deprecation messages. Every other value bundles the production
+build.
 
 ## Publishing
 

@@ -51,12 +51,15 @@ async function fixture(manifest: object, { emberSource = true } = {}): Promise<s
 }
 
 /** Runs the plugin's own hooks directly against the current fixture. */
-function resolveWith(source: string): unknown {
-  const plugin = emberExternals();
+function resolveWith(
+  source: string,
+  { bundle = false, importer }: { bundle?: boolean; importer?: string } = {},
+): unknown {
+  const plugin = emberExternals({ bundle });
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
   (plugin.buildStart as any).call({ addWatchFile() {} });
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
-  return (plugin.resolveId as any).handler(source);
+  return (plugin.resolveId as any).handler(source, importer);
 }
 
 describe("emberExternals", () => {
@@ -91,6 +94,16 @@ describe("emberExternals", () => {
     expect(resolveWith("left-pad")).toBeUndefined();
     // No ember-source in the graph -> no renamed-modules to consult.
     expect(resolveWith("@glimmer/runtime")).toBeUndefined();
+  });
+
+  it("in bundle mode, externalizes only for declaration importers", async () => {
+    await fixture({ dependencies: { "some-dep": "*" } });
+
+    for (const source of ["some-dep", "@ember/component", "@glimmer/runtime"]) {
+      expect(resolveWith(source, { bundle: true, importer: "/lib/src/index.ts" })).toBeNull();
+      expect(resolveWith(source, { bundle: true })).toBeNull();
+      expect(resolveWith(source, { bundle: true, importer: "/lib/src/index.d.ts" })).toBe(false);
+    }
   });
 
   it("keeps a renamed-modules import external through a real build", async () => {

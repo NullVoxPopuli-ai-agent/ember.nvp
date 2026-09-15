@@ -212,6 +212,7 @@ describe("layer: readme", () => {
         "# @acme/counter
 
         An Ember component, packaged as a custom element, created with \`ember.nvp\`.
+        The built package contains ember, so the page that uses the element needs nothing else.
 
         ## Usage
 

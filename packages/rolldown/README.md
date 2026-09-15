@@ -209,6 +209,8 @@ it.
 - **`emberExternals()`** — keeps your `dependencies`, `peerDependencies`, and
   the ember virtual packages (e.g. `@ember/component`, `@glimmer/tracking`, the
   template compiler) external, so the consuming app resolves them.
+- **`emberBundleResolver()`** — bundle mode only: resolves the ember virtual
+  packages to the files in ember-source's `dist`, so they can be bundled.
 - **`emberTransform()`** — preprocesses `<template>` via
   [content-tag](https://github.com/embroider-build/content-tag) and maps
   `.gts`/`.gjs` to `.ts`/`.js` so rolldown understands them. Also rewrites
@@ -223,6 +225,7 @@ it.
 
 ```ts
 ember({
+  bundle: false,
   babel: {
     configFile: "./babel.config.js",
     babelHelpers: "bundled",
@@ -238,6 +241,39 @@ template AST transforms to the default template-compilation step; it can't be
 combined with a babel config file — a config lists
 `babel-plugin-ember-template-compilation` itself, so its transforms belong
 there.
+
+### Bundle mode
+
+`bundle: true` builds a self-contained package instead of a library: something
+that runs on any page, such as a custom element.
+
+```js
+export default defineConfig({
+  entry: ["./src/index.ts", "./src/register.ts"],
+  plugins: [ember({ bundle: true })],
+});
+```
+
+In bundle mode:
+
+- ember-source, `@glimmer/component`, `decorator-transforms`, and every other
+  dependency are bundled in. The `platform` is `browser`, and tsdown's
+  `deps.alwaysBundle` covers everything but node builtins.
+- Templates compile to the wire format with the bundled ember-source's own
+  compiler. The wire format is private between one compiler and one runtime of
+  the same version, and here both ship together.
+- `NODE_ENV=development` selects ember-source's development build (assertions
+  and deprecation messages). Any other value selects the production build.
+- Declarations are unchanged. A `.d.ts` still imports `@glimmer/component` and
+  friends by name.
+
+Bundle mode applies to the built-in babel defaults. With your own babel config
+file, set `targetFormat: "wire"` on `babel-plugin-ember-template-compilation`
+yourself.
+
+The default (`bundle: false`) builds a library for Ember apps, as described
+above. tsdown's own `unbundle` option does not combine with bundle mode: it
+writes every bundled dependency as its own file under `dist/node_modules/`.
 
 ### Publish vs. development babel config
 

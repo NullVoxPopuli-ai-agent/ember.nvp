@@ -26,8 +26,20 @@ import type { TsdownPlugin, UserConfig } from "tsdown";
  * - `output.sourcemap` — on (output option).
  *
  * Externals are handled by `emberExternals()` (a `resolveId` hook) in both cases.
+ *
+ * In bundle mode the output is a self-contained browser artifact, so the
+ * dependency defaults flip:
+ *
+ * - `platform` — `browser`.
+ * - `deps.alwaysBundle` — everything but node builtins, including the
+ *   package's own `dependencies` and `peerDependencies`.
+ * - `deps.neverBundle` — node builtins only.
+ * - `deps.onlyBundle` — `false`; bundling node_modules is the point, so
+ *   tsdown's hint about it is noise.
+ * - `deps.dts.alwaysBundle` — nothing; declarations keep importing types by
+ *   name (see `emberExternals`).
  */
-export function emberConfig(): TsdownPlugin {
+export function emberConfig({ bundle = false }: { bundle?: boolean } = {}): TsdownPlugin {
   return {
     name: "ember:config",
 
@@ -39,6 +51,17 @@ export function emberConfig(): TsdownPlugin {
       config.report ??= false;
 
       config.deps ??= {};
+
+      if (bundle) {
+        config.platform ??= "browser";
+        config.deps.alwaysBundle ??= (id) => !id.startsWith("node:");
+        config.deps.neverBundle ??= ["node:*"];
+        config.deps.onlyBundle ??= false;
+        config.deps.dts ??= {};
+        config.deps.dts.alwaysBundle ??= () => false;
+        return;
+      }
+
       config.deps.neverBundle ??= ["node:*", "@ember/*", "@glimmer/*"];
     },
 

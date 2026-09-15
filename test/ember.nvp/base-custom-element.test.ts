@@ -35,15 +35,47 @@ async function emit(project: Project, files: Record<string, string>) {
 }
 
 /**
+ * The shared chunk carries a content hash, which would change with every
+ * dependency bump: stable names only.
+ */
+async function listDist(project: Project) {
+  let files = await listFiles(join(project.directory, "dist"));
+
+  return files.map((file) => file.replace(/^src-[\w-]+\.js/, "src-[hash].js"));
+}
+
+/**
+ * The bundled chunk's own imports are hoisted above its first region
+ * marker; ember-source's doc comments below it also start lines with
+ * `import`, so only that head is inspected.
+ */
+async function chunkImports(project: Project) {
+  let files = await listFiles(join(project.directory, "dist"));
+  let chunk = files.find((file) => /^src-[\w-]+\.js$/.test(file));
+
+  expect(chunk).toBeDefined();
+
+  let code = (await project.read(`dist/${chunk}`)) ?? "";
+  let head = code.split("//#region")[0] ?? "";
+
+  return head.match(/^import .*$/gm) ?? [];
+}
+
+/**
  * Drives the generated element the way a consumer would: import the
  * register entry, put the tag on the page, click, change attributes.
+ *
+ * `from` is the module that provides the element: the source (`src`) or,
+ * after a build, the self-contained output (`dist`).
  */
-function elementTests(ext: "ts" | "js", tagName: string) {
+function elementTests(ext: "ts" | "js", tagName: string, from: "src" | "dist" = "src") {
+  let register = from === "src" ? `../src/register.${ext}` : "../dist/register.js";
+
   return {
-    [`tests/element-test.${ext}`]: `import { describe, test, expect, afterEach } from "vitest";
+    [`tests/${from}-element-test.${ext}`]: `import { describe, test, expect, afterEach } from "vitest";
 import { renderSettled } from "@ember/renderer";
 
-import "../src/register.${ext}";
+import "${register}";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -223,50 +255,46 @@ describe("base: minimal-custom-element", () => {
         export default defineConfig({
           entry: ["./src/index.js", "./src/register.js"],
           dts: false,
-          unbundle: true,
-          plugins: [ember()],
+          plugins: [ember({ bundle: true })],
         });
         "
       `);
     });
 
-    it("builds both entries", async () => {
+    it("builds a self-contained package", async () => {
       await install(project);
       await build(project);
 
-      expect(await listFiles(join(project.directory, "dist"))).toMatchInlineSnapshot(`
+      expect(await listDist(project)).toMatchInlineSnapshot(`
         [
-          "components/counter.js",
-          "components/counter.js.map",
-          "element.js",
-          "element.js.map",
           "index.js",
           "register.js",
           "register.js.map",
+          "src-[hash].js",
+          "src-[hash].js.map",
         ]
       `);
 
-      // The register entry shares the element with the index entry
-      // instead of bundling its own copy
-      expect(await project.read("dist/register.js")).toMatchInlineSnapshot(`
-        "import { CounterElement } from "./element.js";
-        import "./index.js";
-        //#region src/register.js
-        if (!customElements.get("my-counter")) customElements.define("my-counter", CounterElement);
-        //#endregion
-        export {};
+      let register = await project.read("dist/register.js");
 
-        //# sourceMappingURL=register.js.map"
-      `);
+      expect(register).toContain('customElements.define("my-counter"');
+      // Both entries share one chunk holding the element, the component,
+      // and ember itself
+      expect(register).toMatch(/from "\.\/src-[\w-]+\.js"/);
+      expect(await project.read("dist/index.js")).toMatch(/from "\.\/src-[\w-]+\.js"/);
 
-      let component = await project.read("dist/components/counter.js");
+      // Nothing is left for a consumer to resolve
+      expect(await chunkImports(project)).toEqual([]);
 
-      // Published libraries ship precompileTemplate (the consuming app does
-      // the final compile), never wire format
-      expect(component).toContain("precompileTemplate");
-      expect(component).not.toContain("createTemplateFactory");
+      let files = await listFiles(join(project.directory, "dist"));
+      let chunk = (await project.read(`dist/${files.find((file) => file.startsWith("src-"))}`))!;
 
-      expect(await project.read("dist/element.js")).toContain('from "@ember/renderer"');
+      // The template ships compiled for the bundled ember-source, so the
+      // page needs no template compiler
+      expect(chunk).not.toContain("precompileTemplate(");
+      expect(chunk).toContain('"block":');
+      expect(chunk).toContain('observedAttributes = ["label", "step"]');
+      expect(chunk).toContain("renderComponent");
     });
   });
 
@@ -315,28 +343,49 @@ describe("base: minimal-custom-element", () => {
     it("builds, including declarations", async () => {
       await build(project);
 
-      expect(await listFiles(join(project.directory, "dist"))).toMatchInlineSnapshot(`
+      expect(await listDist(project)).toMatchInlineSnapshot(`
         [
-          "components/counter.d.ts",
-          "components/counter.d.ts.map",
-          "components/counter.js",
-          "components/counter.js.map",
-          "element.d.ts",
-          "element.d.ts.map",
-          "element.js",
-          "element.js.map",
           "index.d.ts",
+          "index.d.ts.map",
           "index.js",
           "register.d.ts",
           "register.js",
           "register.js.map",
+          "src-[hash].js",
+          "src-[hash].js.map",
         ]
       `);
 
+      expect(await chunkImports(project)).toEqual([]);
+
+      // Declarations keep naming their types: there is no bundling a type
+      // into a runtime
       expect(await project.read("dist/index.d.ts")).toMatchInlineSnapshot(`
-        "import { CounterElement } from "./element.js";
-        import Counter, { CounterSignature } from "./components/counter.js";
-        export { Counter, CounterElement, type CounterSignature };"
+        "import Component from "@glimmer/component";
+        //#region src/element.d.ts
+        declare class CounterElement extends HTMLElement {
+          #private;
+          static observedAttributes: string[];
+          connectedCallback(): void;
+          disconnectedCallback(): void;
+          attributeChangedCallback(name: string, _previous: string | null, value: string | null): void;
+        }
+        //#endregion
+        //#region src/components/counter.d.ts
+        interface CounterSignature {
+          Element: HTMLDivElement;
+          Args: {
+            label: string;
+            step: number;
+          };
+        }
+        declare class Counter extends Component<CounterSignature> {
+          count: number;
+          increment: () => void;
+        }
+        //#endregion
+        export { Counter, CounterElement, type CounterSignature };
+        //# sourceMappingURL=index.d.ts.map"
       `);
       expect(await project.read("dist/register.d.ts")).toMatchInlineSnapshot(`"export {}"`);
     });
@@ -362,6 +411,21 @@ describe("base: minimal-custom-element", () => {
         let test = await execa("pnpm test", { cwd: project.directory, shell: true });
         expect(test.exitCode).toBe(0);
       });
+
+      it(
+        "runs from the built package, with no ember on the page",
+        { timeout: 300_000 },
+        async () => {
+          await build(project);
+          // Only the dist spec: the vitest run must not also load the source
+          // copy, or the tag would already be defined by whichever wins
+          await rm(join(project.directory, "tests"), { recursive: true, force: true });
+          await emit(project, elementTests("ts", "my-counter", "dist"));
+
+          let test = await execa("pnpm test", { cwd: project.directory, shell: true });
+          expect(test.exitCode).toBe(0);
+        },
+      );
     });
 
     describe("JavaScript", () => {
