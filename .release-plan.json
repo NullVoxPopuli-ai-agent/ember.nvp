@@ -2,8 +2,8 @@
   "solution": {
     "ember.nvp": {
       "impact": "minor",
-      "oldVersion": "1.5.0",
-      "newVersion": "1.6.0",
+      "oldVersion": "1.6.0",
+      "newVersion": "1.7.0",
       "tagName": "latest",
       "constraints": [
         {
@@ -17,11 +17,21 @@
       "oldVersion": "1.1.0"
     },
     "@nullvoxpopuli/ember-rolldown": {
-      "oldVersion": "2.7.0"
+      "impact": "minor",
+      "oldVersion": "2.7.0",
+      "newVersion": "2.8.0",
+      "tagName": "latest",
+      "constraints": [
+        {
+          "impact": "minor",
+          "reason": "Appears in changelog section :rocket: Enhancement"
+        }
+      ],
+      "pkgJSONPath": "./packages/rolldown/package.json"
     },
     "@nullvoxpopuli/ember-vite": {
       "oldVersion": "1.1.0"
     }
   },
-  "description": "## Release (2026-09-10)\n\n* ember.nvp 1.6.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`\n  * [#129](https://github.com/NullVoxPopuli/ember.nvp/pull/129) Add routes import ([@NullVoxPopuli](https://github.com/NullVoxPopuli))\n  * [#127](https://github.com/NullVoxPopuli/ember.nvp/pull/127) Update eslint (+ deps) in layers ([@tcjr](https://github.com/tcjr))\n\n#### Committers: 2\n- Tom Carter ([@tcjr](https://github.com/tcjr))\n- [@NullVoxPopuli](https://github.com/NullVoxPopuli)\n"
+  "description": "## Release (2026-09-15)\n\n* ember.nvp 1.7.0 (minor)\n* @nullvoxpopuli/ember-rolldown 2.8.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`, `@nullvoxpopuli/ember-rolldown`\n  * [#130](https://github.com/NullVoxPopuli/ember.nvp/pull/130) Add a custom element project type, and a bundle mode for ember-rolldown ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
 }
