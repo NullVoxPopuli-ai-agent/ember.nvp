@@ -209,8 +209,9 @@ it.
 - **`emberExternals()`** — keeps your `dependencies`, `peerDependencies`, and
   the ember virtual packages (e.g. `@ember/component`, `@glimmer/tracking`, the
   template compiler) external, so the consuming app resolves them.
-- **`emberBundleResolver()`** — bundle mode only: resolves the ember virtual
-  packages to the files in ember-source's `dist`, so they can be bundled.
+- **`emberBundle()`** — bundle mode only: aliases the ember virtual packages
+  into ember-source (`@ember/modifier` → `ember-source/@ember/modifier`), whose
+  export conditions pick the build to bundle.
 - **`emberTransform()`** — preprocesses `<template>` via
   [content-tag](https://github.com/embroider-build/content-tag) and maps
   `.gts`/`.gjs` to `.ts`/`.js` so rolldown understands them. Also rewrites
@@ -262,8 +263,18 @@ In bundle mode:
 - Templates compile to the wire format with the bundled ember-source's own
   compiler. The wire format is private between one compiler and one runtime of
   the same version, and here both ship together.
-- `NODE_ENV=development` selects ember-source's development build (assertions
-  and deprecation messages). Any other value selects the production build.
+- ember-source's export conditions pick which of its builds is bundled. The
+  `default` condition selects the production build. To bundle the development
+  build (assertions and deprecation messages), add the `development` condition:
+
+  ```js
+  export default defineConfig({
+    entry: ["./src/index.ts", "./src/register.ts"],
+    plugins: [ember({ bundle: true })],
+    inputOptions: { resolve: { conditionNames: ["development"] } },
+  });
+  ```
+
 - Declarations are unchanged. A `.d.ts` still imports `@glimmer/component` and
   friends by name.
 

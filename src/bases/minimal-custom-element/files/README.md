@@ -79,9 +79,13 @@ so every exported value needs an explicit type annotation.
 
 ### Development or production ember
 
-`NODE_ENV=development pnpm build` bundles the development build of ember-source,
-with assertions and deprecation messages. Every other value bundles the production
-build.
+The build bundles the production build of ember-source. To bundle the development
+build, with assertions and deprecation messages, add the `development` export
+condition in `tsdown.config.js`:
+
+```js
+inputOptions: { resolve: { conditionNames: ["development"] } },
+```
 
 ## Publishing
 

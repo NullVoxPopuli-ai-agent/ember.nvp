@@ -1,5 +1,5 @@
 import { emberBabel, type BabelOptions } from "./src/babel.ts";
-import { emberBundleResolver } from "./src/bundle-resolver.ts";
+import { emberBundle } from "./src/bundle.ts";
 import { emberConfig } from "./src/config.ts";
 import { emberExternals } from "./src/externals.ts";
 import { emberIsolatedDeclarations } from "./src/isolated-declarations.ts";
@@ -16,11 +16,13 @@ interface Config {
    * app to compile.
    *
    * `true` builds an artifact that runs on any page, such as a custom
-   * element: ember-source (the `dev` or `prod` build, following
-   * `NODE_ENV`), `@glimmer/component`, `decorator-transforms`, and every
-   * other dependency are bundled in, and templates are compiled to the
-   * wire format with that same ember-source. Declarations are unaffected:
-   * they keep importing types by name.
+   * element: ember-source, `@glimmer/component`, `decorator-transforms`,
+   * and every other dependency are bundled in, and templates are compiled
+   * to the wire format with that same ember-source. Which ember-source
+   * build is bundled follows the resolver's export conditions: production
+   * by default, development with
+   * `resolve.conditionNames: ["development"]`. Declarations are
+   * unaffected: they keep importing types by name.
    */
   bundle?: boolean;
   /**
@@ -44,8 +46,8 @@ interface Config {
  *   declaration pipeline that can see compiled template-tag modules).
  * - `emberExternals()` — keeps your dependencies, peerDependencies, and the
  *   ember virtual packages external, so consuming apps resolve them.
- * - `emberBundleResolver()` — bundle mode only: resolves the ember virtual
- *   packages to ember-source's own dist files so they can be bundled.
+ * - `emberBundle()` — bundle mode only: aliases the ember virtual packages
+ *   into ember-source, whose export conditions pick the build to bundle.
  * - `emberTransform()` — preprocesses `<template>` via content-tag and maps
  *   `.gts`/`.gjs` to `.ts`/`.js` so rolldown can understand them.
  * - `emberBabel()` — runs babel (template compilation, decorators, type
@@ -74,7 +76,7 @@ export function ember(config: Config = {}): RolldownPluginLike[] {
     emberConfig({ bundle }),
     emberIsolatedDeclarations(),
     emberExternals({ bundle }),
-    ...(bundle ? [emberBundleResolver()] : []),
+    ...(bundle ? [emberBundle()] : []),
     emberTransform(),
     emberBabel({ ...config.babel, bundle }),
   ];
