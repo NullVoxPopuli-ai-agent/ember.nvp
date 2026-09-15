@@ -36,63 +36,46 @@ function resolvableDependencies(): Set<string> {
 }
 
 /**
- * The ember-source in the library's own dependency graph: where it is on
- * disk, and the modules it provides by renaming them into itself (its
- * `ember-addon.renamed-modules`, keyed by module file path:
- * `@glimmer/runtime/index.js` → `ember-source/@glimmer/runtime/index.js`).
+ * The modules ember-source provides by renaming them into itself.
  *
- * The renamed modules are the authoritative list of ember's provided
- * modules, including private API that @embroider/core's
- * emberVirtualPackages doesn't cover (e.g. `@glimmer/runtime`). It
- * deliberately does NOT include real packages like `@glimmer/component`,
+ * This is its `ember-addon.renamed-modules`, keyed by module file path:
+ *   `@glimmer/runtime/index.js` → `ember-source/@glimmer/runtime/index.js`
+ *
+ * It is the authoritative list of ember's provided modules.
+ * It includes private API that @embroider/core's emberVirtualPackages
+ * doesn't cover (e.g. `@glimmer/runtime`).
+ *
+ * It deliberately does NOT include real packages like `@glimmer/component`,
  * which a library may want bundled.
  *
- * `undefined` when ember-source isn't resolvable from the library.
+ * Empty when ember-source isn't resolvable from the library.
  */
-export function emberSource():
-  | { directory: string; renamedModules: Record<string, string> }
-  | undefined {
+export function emberSourceRenamedModules(): Record<string, string> {
   try {
     const require = createRequire(path.resolve("package.json"));
-    const manifestPath = require.resolve("ember-source/package.json");
-    const manifest = readJsonSync(manifestPath) as {
+    const manifest = require("ember-source/package.json") as {
       "ember-addon"?: { "renamed-modules"?: Record<string, string> };
     };
 
-    return {
-      directory: path.dirname(manifestPath),
-      renamedModules: manifest["ember-addon"]?.["renamed-modules"] ?? {},
-    };
+    return manifest["ember-addon"]?.["renamed-modules"] ?? {};
   } catch {
     // The library doesn't have ember-source in its graph; nothing to provide.
-    return undefined;
+    return {};
   }
 }
 
 /**
  * The renamed modules as import specifiers
- * (`@glimmer/runtime/index.js` → `@glimmer/runtime`).
+ *   `@glimmer/runtime/index.js` → `@glimmer/runtime`
  */
-function emberSourceRenamedModules(): Set<string> {
+function emberSourceProvidedModules(): Set<string> {
   const provided = new Set<string>();
 
-  for (const key of Object.keys(emberSource()?.renamedModules ?? {})) {
+  for (const key of Object.keys(emberSourceRenamedModules())) {
     provided.add(key.replace(/\.js$/, "").replace(/\/index$/, ""));
   }
 
   return provided;
-}
-
-const DECLARATION = /\.d\.[cm]?ts$/;
-
-export interface ExternalsOptions {
-  /**
-   * In bundle mode the runtime build bundles everything, so only declaration
-   * modules keep their imports external: a `.d.ts` still refers to
-   * `@glimmer/component` and friends by name, since there is no such thing
-   * as bundling a type into a runtime.
-   */
-  bundle?: boolean;
 }
 
 /**
@@ -101,7 +84,7 @@ export interface ExternalsOptions {
  * …) external, so the app that consumes the library resolves them instead of
  * the library bundling copies of them.
  */
-export function emberExternals({ bundle = false }: ExternalsOptions = {}): Plugin {
+export function emberExternals(): Plugin {
   let deps: Set<string>;
   let renamedModules: Set<string>;
 
@@ -111,19 +94,15 @@ export function emberExternals({ bundle = false }: ExternalsOptions = {}): Plugi
     buildStart() {
       this.addWatchFile("package.json");
       deps = resolvableDependencies();
-      renamedModules = emberSourceRenamedModules();
+      renamedModules = emberSourceProvidedModules();
     },
 
     resolveId: {
       order: "pre",
-      handler(source, importer) {
+      handler(source) {
         // Anything with a protocol (`node:`, virtual modules, …) is not ours
         // to externalize.
         if (source.includes(":")) {
-          return null;
-        }
-
-        if (bundle && !(importer && DECLARATION.test(importer))) {
           return null;
         }
 

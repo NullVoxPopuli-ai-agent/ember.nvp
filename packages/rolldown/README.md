@@ -209,9 +209,8 @@ it.
 - **`emberExternals()`** — keeps your `dependencies`, `peerDependencies`, and
   the ember virtual packages (e.g. `@ember/component`, `@glimmer/tracking`, the
   template compiler) external, so the consuming app resolves them.
-- **`emberBundle()`** — bundle mode only: aliases the ember virtual packages
-  into ember-source (`@ember/modifier` → `ember-source/@ember/modifier`), whose
-  export conditions pick the build to bundle.
+- **`emberBundle()`** — bundle mode only, in place of `emberExternals()`: makes
+  the ember virtual packages resolvable, so they can be bundled.
 - **`emberTransform()`** — preprocesses `<template>` via
   [content-tag](https://github.com/embroider-build/content-tag) and maps
   `.gts`/`.gjs` to `.ts`/`.js` so rolldown understands them. Also rewrites
@@ -255,36 +254,25 @@ export default defineConfig({
 });
 ```
 
-In bundle mode:
+The output contains ember and every other dependency, with templates already
+compiled. Declarations are bundled the same way.
 
-- ember-source, `@glimmer/component`, `decorator-transforms`, and every other
-  dependency are bundled in. The `platform` is `browser`, and tsdown's
-  `deps.alwaysBundle` covers everything but node builtins.
-- Templates compile to the wire format with the bundled ember-source's own
-  compiler. The wire format is private between one compiler and one runtime of
-  the same version, and here both ship together.
-- ember-source's export conditions pick which of its builds is bundled. The
-  `default` condition selects the production build. To bundle the development
-  build (assertions and deprecation messages), add the `development` condition:
+The production build of ember is bundled. To bundle the development build
+(assertions and deprecation messages), add the `development` condition:
 
-  ```js
-  export default defineConfig({
-    entry: ["./src/index.ts", "./src/register.ts"],
-    plugins: [ember({ bundle: true })],
-    inputOptions: { resolve: { conditionNames: ["development"] } },
-  });
-  ```
-
-- Declarations are unchanged. A `.d.ts` still imports `@glimmer/component` and
-  friends by name.
+```js
+export default defineConfig({
+  entry: ["./src/index.ts", "./src/register.ts"],
+  plugins: [ember({ bundle: true })],
+  inputOptions: { resolve: { conditionNames: ["development"] } },
+});
+```
 
 Bundle mode applies to the built-in babel defaults. With your own babel config
 file, set `targetFormat: "wire"` on `babel-plugin-ember-template-compilation`
 yourself.
 
-The default (`bundle: false`) builds a library for Ember apps, as described
-above. tsdown's own `unbundle` option does not combine with bundle mode: it
-writes every bundled dependency as its own file under `dist/node_modules/`.
+Do not combine bundle mode with tsdown's `unbundle` option.
 
 ### Publish vs. development babel config
 

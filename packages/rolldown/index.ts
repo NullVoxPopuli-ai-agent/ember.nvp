@@ -10,19 +10,20 @@ interface Config {
   /**
    * Build a self-contained package instead of a library.
    *
-   * `false` (the default) builds a library for Ember apps: ember, the
-   * package's dependencies, and its peerDependencies stay external, and
-   * templates are shipped as `precompileTemplate` calls for the consuming
-   * app to compile.
+   * `false` (the default) builds a library for Ember apps:
+   * - ember, the package's dependencies, and its peerDependencies stay external
+   * - templates are shipped as `precompileTemplate` calls,
+   *   for the consuming app to compile
    *
-   * `true` builds an artifact that runs on any page, such as a custom
-   * element: ember-source, `@glimmer/component`, `decorator-transforms`,
-   * and every other dependency are bundled in, and templates are compiled
-   * to the wire format with that same ember-source. Which ember-source
-   * build is bundled follows the resolver's export conditions: production
-   * by default, development with
-   * `resolve.conditionNames: ["development"]`. Declarations are
-   * unaffected: they keep importing types by name.
+   * `true` builds an artifact that runs on any page, such as a custom element:
+   * - ember-source, `@glimmer/component`, `decorator-transforms`,
+   *   and every other dependency are bundled in
+   * - templates are compiled to the wire format with that same ember-source
+   * - declarations bundle their type imports as well
+   *
+   * Which ember-source build is bundled follows the export conditions:
+   * - production by default
+   * - development with `resolve.conditionNames: ["development"]`
    */
   bundle?: boolean;
   /**
@@ -46,8 +47,9 @@ interface Config {
  *   declaration pipeline that can see compiled template-tag modules).
  * - `emberExternals()` — keeps your dependencies, peerDependencies, and the
  *   ember virtual packages external, so consuming apps resolve them.
- * - `emberBundle()` — bundle mode only: aliases the ember virtual packages
- *   into ember-source, whose export conditions pick the build to bundle.
+ * - `emberBundle()` — bundle mode only, in place of `emberExternals()`:
+ *   aliases the ember virtual packages into ember-source,
+ *   whose export conditions pick the build to bundle.
  * - `emberTransform()` — preprocesses `<template>` via content-tag and maps
  *   `.gts`/`.gjs` to `.ts`/`.js` so rolldown can understand them.
  * - `emberBabel()` — runs babel (template compilation, decorators, type
@@ -75,8 +77,7 @@ export function ember(config: Config = {}): RolldownPluginLike[] {
   return [
     emberConfig({ bundle }),
     emberIsolatedDeclarations(),
-    emberExternals({ bundle }),
-    ...(bundle ? [emberBundle()] : []),
+    bundle ? emberBundle() : emberExternals(),
     emberTransform(),
     emberBabel({ ...config.babel, bundle }),
   ];

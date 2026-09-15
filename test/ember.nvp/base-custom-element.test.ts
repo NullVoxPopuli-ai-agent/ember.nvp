@@ -8,11 +8,14 @@ import { dirname, join } from "node:path";
 import type { Project } from "ember.nvp";
 
 /**
- * The minimal-custom-element base ships a working pattern (a counter
- * component wrapped in a custom element), so unlike the library base
- * there is no example source to write in: these tests build the
- * generated project as-is, and run the element in a real browser through
- * the vitest layer.
+ * The minimal-custom-element base ships a working pattern:
+ * a counter component wrapped in a custom element.
+ *
+ * So unlike the library base, there is no example source to write in.
+ * These tests:
+ * - build the generated project as-is
+ * - run the element in a real browser, through the vitest layer
+ *   (from source, and from the built dist)
  */
 
 async function install(project: Project) {
@@ -35,8 +38,10 @@ async function emit(project: Project, files: Record<string, string>) {
 }
 
 /**
- * The shared chunk carries a content hash, which would change with every
- * dependency bump: stable names only.
+ * The shared chunk carries a content hash,
+ * which would change with every dependency bump.
+ *
+ * Stable names only.
  */
 async function listDist(project: Project) {
   let files = await listFiles(join(project.directory, "dist"));
@@ -45,9 +50,10 @@ async function listDist(project: Project) {
 }
 
 /**
- * The bundled chunk's own imports are hoisted above its first region
- * marker; ember-source's doc comments below it also start lines with
- * `import`, so only that head is inspected.
+ * The bundled chunk's own imports are hoisted above its first region marker.
+ *
+ * ember-source's doc comments below it also start lines with `import`,
+ * so only that head is inspected.
  */
 async function chunkImports(project: Project) {
   let files = await listFiles(join(project.directory, "dist"));
@@ -62,11 +68,15 @@ async function chunkImports(project: Project) {
 }
 
 /**
- * Drives the generated element the way a consumer would: import the
- * register entry, put the tag on the page, click, change attributes.
+ * Drives the generated element the way a consumer would:
+ * - import the register entry
+ * - put the tag on the page
+ * - click
+ * - change attributes
  *
- * `from` is the module that provides the element: the source (`src`) or,
- * after a build, the self-contained output (`dist`).
+ * `from` is the module that provides the element:
+ * - `src`: the source
+ * - `dist`: the self-contained output, after a build
  */
 function elementTests(ext: "ts" | "js", tagName: string, from: "src" | "dist" = "src") {
   let register = from === "src" ? `../src/register.${ext}` : "../dist/register.js";
@@ -358,35 +368,13 @@ describe("base: minimal-custom-element", () => {
 
       expect(await chunkImports(project)).toEqual([]);
 
-      // Declarations keep naming their types: there is no bundling a type
-      // into a runtime
-      expect(await project.read("dist/index.d.ts")).toMatchInlineSnapshot(`
-        "import Component from "@glimmer/component";
-        //#region src/element.d.ts
-        declare class CounterElement extends HTMLElement {
-          #private;
-          static observedAttributes: string[];
-          connectedCallback(): void;
-          disconnectedCallback(): void;
-          attributeChangedCallback(name: string, _previous: string | null, value: string | null): void;
-        }
-        //#endregion
-        //#region src/components/counter.d.ts
-        interface CounterSignature {
-          Element: HTMLDivElement;
-          Args: {
-            label: string;
-            step: number;
-          };
-        }
-        declare class Counter extends Component<CounterSignature> {
-          count: number;
-          increment: () => void;
-        }
-        //#endregion
-        export { Counter, CounterElement, type CounterSignature };
-        //# sourceMappingURL=index.d.ts.map"
-      `);
+      let declarations = (await project.read("dist/index.d.ts"))!;
+
+      expect(declarations).toContain("declare class CounterElement extends HTMLElement");
+      // The component's base class is bundled in, like the runtime.
+      // (ember-source's own types are ambient, so those stay by name)
+      expect(declarations).toContain("declare class Component<");
+      expect(declarations).not.toContain('from "@glimmer/component"');
       expect(await project.read("dist/register.d.ts")).toMatchInlineSnapshot(`"export {}"`);
     });
   });

@@ -15,9 +15,9 @@ afterEach(() => {
 });
 
 /**
- * An ember-source stub shaped like the real package: a `./*` export whose
- * conditions pick one of two builds, and a `renamed-modules` map keyed by
- * module file path.
+ * An ember-source stub shaped like the real package:
+ * - a `./*` export whose conditions pick one of two builds
+ * - a `renamed-modules` map keyed by module file path
  */
 const EMBER_SOURCE_MANIFEST = {
   name: "ember-source",

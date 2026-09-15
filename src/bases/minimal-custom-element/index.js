@@ -10,14 +10,20 @@ const TEMPLATE_TAG_NAME = "minimal-custom-element";
 /**
  * Minimal Custom Element Base
  *
- * The minimal-library toolchain (tsdown + @nullvoxpopuli/ember-rolldown,
- * no babel config, no testing, no linting), around one pattern:
+ * The minimal-library toolchain, around one pattern:
  * - a `<template>` component (`src/components/counter.gts`)
- * - a custom element that renders it with `renderComponent` and forwards
- *   its observed attributes as reactive args (`src/element.ts`)
+ * - a custom element that renders it with `renderComponent`,
+ *   and forwards its observed attributes as reactive args (`src/element.ts`)
  * - `src/index.ts` exports the element class and the component
- * - `src/register.ts` defines the tag, for consumers to import as a
- *   side effect
+ * - `src/register.ts` defines the tag, for consumers to import as a side effect
+ *
+ * Built in bundle mode: ember ships inside the package.
+ *
+ * Like minimal-library:
+ * - built with tsdown + @nullvoxpopuli/ember-rolldown
+ * - No babel.config.js
+ * - No testing framework
+ * - No linting or formatting
  *
  * Testing, linting, formatting, etc. are opt-in via layers.
  */
@@ -47,9 +53,10 @@ export default {
 };
 
 /**
- * The tag a generated project registers: the package name without its
- * scope. A custom element name must contain a hyphen, so an unhyphenated
- * package name gets an `-element` suffix.
+ * The tag a generated project registers: the package name without its scope.
+ *
+ * A custom element name must contain a hyphen,
+ * so an unhyphenated package name gets an `-element` suffix.
  *
  * @param {string} packageName
  * @returns {string}
@@ -115,9 +122,11 @@ async function makePublishable(project) {
 }
 
 /**
- * When the project is JavaScript (no typescript layer), remove the TS
- * toolchain, drop the tsconfig, and point the build at the emitted `.js`
- * entries (declarations can't be produced without types).
+ * When the project is JavaScript (no typescript layer):
+ * - remove the TS toolchain
+ * - drop the tsconfig
+ * - point the build at the emitted `.js` entries
+ *   (declarations can't be produced without types)
  *
  * @param {import('#utils/project.js').Project} project
  */

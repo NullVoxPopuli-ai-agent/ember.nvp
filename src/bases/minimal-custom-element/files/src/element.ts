@@ -4,8 +4,10 @@ import { trackedObject } from "@ember/reactive/collections";
 import Counter from "./components/counter.gts";
 
 /**
- * Every element renders through one shared owner, so that ember creates
- * one renderer for the whole library instead of one per element.
+ * Every element renders through one shared owner.
+ *
+ * ember keeps one renderer per owner,
+ * so this is one renderer for the whole library instead of one per element.
  */
 const owner = {};
 
@@ -13,8 +15,9 @@ export class CounterElement extends HTMLElement {
   static observedAttributes: string[] = ["label", "step"];
 
   /**
-   * The rendered component reads its args from this object, so a write
-   * to a property here re-renders the component.
+   * The rendered component reads its args from this object.
+   *
+   * A write to a property here re-renders the component.
    */
   #args = trackedObject({ label: "Count", step: 1 });
 

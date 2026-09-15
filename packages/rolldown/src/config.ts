@@ -27,17 +27,16 @@ import type { TsdownPlugin, UserConfig } from "tsdown";
  *
  * Externals are handled by `emberExternals()` (a `resolveId` hook) in both cases.
  *
- * In bundle mode the output is a self-contained browser artifact, so the
- * dependency defaults flip:
+ * Bundle mode flips the dependency defaults.
+ * The output is a self-contained browser artifact, so:
  *
- * - `platform` — `browser`.
- * - `deps.alwaysBundle` — everything but node builtins, including the
- *   package's own `dependencies` and `peerDependencies`.
- * - `deps.neverBundle` — node builtins only.
- * - `deps.onlyBundle` — `false`; bundling node_modules is the point, so
- *   tsdown's hint about it is noise.
- * - `deps.dts.alwaysBundle` — nothing; declarations keep importing types by
- *   name (see `emberExternals`).
+ * - `platform` — `browser`
+ * - `deps.alwaysBundle` — everything but node builtins
+ *   (including the package's own `dependencies` and `peerDependencies`,
+ *    and the declarations' type imports)
+ * - `deps.neverBundle` — node builtins only
+ * - `deps.onlyBundle` — `false`
+ *   (bundling node_modules is the point, so tsdown's hint about it is noise)
  */
 export function emberConfig({ bundle = false }: { bundle?: boolean } = {}): TsdownPlugin {
   return {
@@ -57,8 +56,6 @@ export function emberConfig({ bundle = false }: { bundle?: boolean } = {}): Tsdo
         config.deps.alwaysBundle ??= (id) => !id.startsWith("node:");
         config.deps.neverBundle ??= ["node:*"];
         config.deps.onlyBundle ??= false;
-        config.deps.dts ??= {};
-        config.deps.dts.alwaysBundle ??= () => false;
         return;
       }
 

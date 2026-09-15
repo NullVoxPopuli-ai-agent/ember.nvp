@@ -1,10 +1,11 @@
 import type { Plugin } from "rolldown";
 
-import { emberSource } from "./externals.ts";
+import { emberSourceRenamedModules } from "./externals.ts";
 
 /**
- * The package name a renamed-modules key belongs to:
- * `@ember/modifier/on.js` → `@ember/modifier`, `rsvp/index.js` → `rsvp`.
+ * The package name a renamed-modules key belongs to
+ *   `@ember/modifier/on.js` → `@ember/modifier`
+ *   `rsvp/index.js` → `rsvp`
  */
 function packageOf(modulePath: string): string {
   const segments = modulePath.split("/");
@@ -15,17 +16,18 @@ function packageOf(modulePath: string): string {
 
 /**
  * One alias per package ember-source provides, pointing into ember-source
- * (`@ember/modifier` → `ember-source/@ember/modifier`).
+ *   `@ember/modifier` → `ember-source/@ember/modifier`
  *
  * The provided packages are the ones named in `ember-addon.renamed-modules`
- * (`@ember/*`, `@glimmer/tracking`, `rsvp`, `backburner.js`, …). Real
- * packages such as `@glimmer/component` are not in it, so they keep
- * resolving from node_modules.
+ * (`@ember/*`, `@glimmer/tracking`, `rsvp`, `backburner.js`, …).
+ *
+ * Real packages such as `@glimmer/component` are not in it,
+ * so they keep resolving from node_modules.
  */
 export function emberSourceAliases(): Record<string, string> {
   const aliases: Record<string, string> = {};
 
-  for (const modulePath of Object.keys(emberSource()?.renamedModules ?? {})) {
+  for (const modulePath of Object.keys(emberSourceRenamedModules())) {
     const name = packageOf(modulePath);
 
     aliases[name] = `ember-source/${name}`;
@@ -35,18 +37,20 @@ export function emberSourceAliases(): Record<string, string> {
 }
 
 /**
- * Makes the modules ember-source provides resolvable, so a bundle-mode
- * build can include them.
+ * Makes the modules ember-source provides resolvable,
+ * so a bundle-mode build can include them.
  *
- * ember-source exports every module under `./*`, with `development` and
- * `production` conditions selecting one of its two builds. A bare
- * `@ember/modifier` is not that path, though: it only exists as
- * `ember-source/@ember/modifier`. This plugin adds the alias for each
- * provided package, and leaves the rest to the resolver: which build is
- * bundled follows the conditions in play. The `default` condition
- * selects the production build; `resolve.conditionNames: ["development"]`
- * (tsdown: `inputOptions.resolve.conditionNames`) selects the development
- * build.
+ * ember-source exports every module under `./*`,
+ * with `development` and `production` conditions selecting one of its two builds.
+ *
+ * A bare `@ember/modifier` is not that path, though.
+ * It only exists as `ember-source/@ember/modifier`.
+ *
+ * So this plugin adds the alias for each provided package,
+ * and leaves the rest to the resolver:
+ * - the `default` condition selects the production build
+ * - `resolve.conditionNames: ["development"]` selects the development build
+ *   (tsdown: `inputOptions.resolve.conditionNames`)
  *
  * Aliases set explicitly in the build config win over these.
  */

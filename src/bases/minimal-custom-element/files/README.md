@@ -6,9 +6,8 @@ and built with
 [`@nullvoxpopuli/ember-rolldown`](https://github.com/NullVoxPopuli/ember.nvp/tree/main/packages/rolldown)
 and [tsdown](https://tsdown.dev/).
 
-The build runs in bundle mode (`ember({ bundle: true })`), so `dist/` contains
-ember-source and every other dependency. The page that uses the element needs
-nothing else.
+`dist/` contains ember and every other dependency. The page that uses the element
+needs nothing else.
 
 ## Usage
 
@@ -59,8 +58,7 @@ pnpm start
 - `src/register.ts` defines the tag. Consumers import this file for its side effect.
 - `src/index.ts` is the public entry point. It exports the element class and the
   component.
-- `dist/` is the built output that gets published (git-ignored). `index.js` and
-  `register.js` share one chunk that holds the element, the component, and ember.
+- `dist/` is the built output that gets published (git-ignored).
 
 ### Reactive attributes
 
@@ -79,9 +77,9 @@ so every exported value needs an explicit type annotation.
 
 ### Development or production ember
 
-The build bundles the production build of ember-source. To bundle the development
-build, with assertions and deprecation messages, add the `development` export
-condition in `tsdown.config.js`:
+The build bundles the production build of ember. To bundle the development build,
+with assertions and deprecation messages, add the `development` condition in
+`tsdown.config.js`:
 
 ```js
 inputOptions: { resolve: { conditionNames: ["development"] } },
