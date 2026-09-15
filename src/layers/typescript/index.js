@@ -4,7 +4,7 @@ import { cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { hasConfiguredTSBabel, prependPlugin } from "#utils/babel.js";
 import { getLatest } from "#utils/npm.js";
-import { isLibraryType } from "#utils/project.js";
+import { isLibraryType } from "#utils/project-type.js";
 
 const bases = join(import.meta.dirname, "../../bases");
 const appBase = join(bases, "minimal-app/files");
