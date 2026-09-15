@@ -5,21 +5,9 @@ import { join } from "node:path";
 import { hasGit } from "#utils/git.js";
 import { assert } from "node:console";
 import { layers, layerNames } from "#layers";
+import { isLibraryType } from "#utils/project-type.js";
 
-/**
- * Libraries and custom elements share one toolchain:
- * - built with tsdown
- * - no babel config
- * - published to npm
- *
- * Layers that branch on "is this a library?" must treat both the same.
- *
- * @param {import('#types').ProjectType} type
- * @returns {boolean}
- */
-export function isLibraryType(type) {
-  return type === "library" || type === "custom-element";
-}
+export { isLibraryType };
 
 /**
  * State container for the project.
