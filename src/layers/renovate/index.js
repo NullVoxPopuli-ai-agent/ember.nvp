@@ -15,10 +15,9 @@ export default {
     }
 
     // extensions aren't published to npm either, so they follow the app config
-    let source =
-      project.type === "library"
-        ? join(import.meta.dirname, "files/library.json5")
-        : join(import.meta.dirname, "files/app.json5");
+    let source = project.isLibrary
+      ? join(import.meta.dirname, "files/library.json5")
+      : join(import.meta.dirname, "files/app.json5");
 
     let destination = join(project.directory, ".github/renovate.json5");
 

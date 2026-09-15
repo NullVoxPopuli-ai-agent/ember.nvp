@@ -10,6 +10,20 @@ import type { Transform } from "babel-plugin-ember-template-compilation";
 import type { Plugin } from "rolldown";
 
 export interface BabelOptions {
+  /**
+   * Compile templates to the wire format instead of `precompileTemplate`.
+   *
+   * For a build that bundles its own ember-source.
+   * The wire format is private between one template compiler and one
+   * glimmer runtime of the same version, so this is only safe when both
+   * ship together.
+   *
+   * The compiler is ember-source's own, resolved from the package.
+   *
+   * Set by `ember({ bundle: true })`.
+   * Only applies without a babel config file.
+   */
+  bundle?: boolean;
   babelHelpers?: "bundled" | "runtime" | "inline" | "external";
   /**
    * The babel config file to use.
@@ -113,11 +127,18 @@ function detectConfigFile(): string | undefined {
  *   same version, so baking it in ties the published artifact to the
  *   consuming app's exact ember-source. The consuming app performs final
  *   compilation.
+ *
+ *   A bundle-mode build ships that exact ember-source,
+ *   so it compiles to the wire format with ember-source's own compiler,
+ *   and needs no compiler at runtime.
+ *
  * - decorator-transforms, with its runtime left as a bare specifier so the
  *   consuming app resolves it (the library keeps `decorator-transforms` as
  *   a real dependency).
+ *
+ *   A bundle-mode build resolves it itself.
  */
-function defaultPlugins(templateTransforms?: Transform[]): PluginItem[] {
+function defaultPlugins(templateTransforms?: Transform[], bundle = false): PluginItem[] {
   return [
     [
       transformTypeScript,
@@ -127,7 +148,10 @@ function defaultPlugins(templateTransforms?: Transform[]): PluginItem[] {
         allowDeclareFields: true,
       },
     ],
-    [templateCompilation, { targetFormat: "hbs", transforms: templateTransforms ?? [] }],
+    [
+      templateCompilation,
+      { targetFormat: bundle ? "wire" : "hbs", transforms: templateTransforms ?? [] },
+    ],
     [
       decoratorTransforms,
       {
@@ -194,6 +218,8 @@ export function emberBabel(options: BabelOptions = {}): Plugin {
     // for one -- we provide the whole plugin list inline.
     configFile: false,
     babelrc: false,
-    plugins: defaultPlugins(options.templateTransforms).concat(options.plugins ?? []),
+    plugins: defaultPlugins(options.templateTransforms, options.bundle).concat(
+      options.plugins ?? [],
+    ),
   }) as unknown as Plugin;
 }

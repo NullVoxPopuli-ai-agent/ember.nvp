@@ -41,14 +41,14 @@ const TEST_BABEL_CONFIG = "config/test/babel.config.js";
  * @param {import('#utils/project.js').Project} project
  */
 function depsFor(project) {
-  return project.type === "library" ? libraryDeps : deps;
+  return project.isLibrary ? libraryDeps : deps;
 }
 
 /**
  * @param {import('#utils/project.js').Project} project
  */
 function tsDepsFor(project) {
-  return project.type === "library" ? libraryTsDeps : tsDeps;
+  return project.isLibrary ? libraryTsDeps : tsDeps;
 }
 
 /**
@@ -58,7 +58,7 @@ export default {
   label: "QUnit",
 
   async run(project) {
-    let isLibrary = project.type === "library";
+    let isLibrary = project.isLibrary;
     let ts = await project.hasOrWantsLayer("typescript");
 
     if (isLibrary) {

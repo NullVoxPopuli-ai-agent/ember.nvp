@@ -35,7 +35,7 @@ const scripts = {
 function depsFor(project) {
   return {
     ...deps,
-    ...(project.type === "library" ? libraryDeps : {}),
+    ...(project.isLibrary ? libraryDeps : {}),
   };
 }
 
