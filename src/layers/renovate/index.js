@@ -14,7 +14,8 @@ export default {
       return;
     }
 
-    // extensions aren't published to npm either, so they follow the app config
+    // extensions aren't published to npm either,
+    // so they follow the app config
     let source = project.isLibrary
       ? join(import.meta.dirname, "files/library.json5")
       : join(import.meta.dirname, "files/app.json5");

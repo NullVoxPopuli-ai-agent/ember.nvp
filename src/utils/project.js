@@ -7,9 +7,12 @@ import { assert } from "node:console";
 import { layers, layerNames } from "#layers";
 
 /**
- * Libraries and custom elements share one toolchain: built with tsdown,
- * no babel config, published to npm. Layers that branch on "is this a
- * library?" must treat both the same.
+ * Libraries and custom elements share one toolchain:
+ * - built with tsdown
+ * - no babel config
+ * - published to npm
+ *
+ * Layers that branch on "is this a library?" must treat both the same.
  *
  * @param {import('#types').ProjectType} type
  * @returns {boolean}
@@ -21,8 +24,8 @@ export function isLibraryType(type) {
 /**
  * State container for the project.
  *
- * May eventually include information for discovering existing state
- * about a project.
+ * May eventually include information for discovering
+ * existing state about a project.
  */
 export class Project {
   #directory;
