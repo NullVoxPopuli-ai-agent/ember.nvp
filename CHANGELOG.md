@@ -2,6 +2,24 @@
 
 ## Release (2026-09-15)
 
+* ember.nvp 1.7.1 (patch)
+* @nullvoxpopuli/ember-build-tooling-utils 1.1.1 (patch)
+* @nullvoxpopuli/ember-rolldown 2.8.1 (patch)
+* @nullvoxpopuli/ember-vite 1.1.1 (patch)
+
+#### :bug: Bug Fix
+* `ember.nvp`
+  * [#134](https://github.com/NullVoxPopuli/ember.nvp/pull/134) Break the import cycle that hangs the CLI on startup ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### :memo: Documentation
+* `ember.nvp`, `@nullvoxpopuli/ember-build-tooling-utils`, `@nullvoxpopuli/ember-rolldown`, `@nullvoxpopuli/ember-vite`
+  * [#132](https://github.com/NullVoxPopuli/ember.nvp/pull/132) Prose pass: reflow comments and READMEs ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+## Release (2026-09-15)
+
 * ember.nvp 1.7.0 (minor)
 * @nullvoxpopuli/ember-rolldown 2.8.0 (minor)
 
