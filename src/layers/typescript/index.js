@@ -20,8 +20,8 @@ const sharedDeps = {
 };
 
 const appDeps = {
-  // Apps strip types via their own babel.config.js; libraries have no babel
-  // config -- ember() handles type stripping.
+  // Apps strip types via their own babel.config.js.
+  // Libraries have no babel config: ember() handles type stripping.
   "@babel/plugin-transform-typescript": "^7.28.5",
   "@ember/app-tsconfig": "^2.0.0",
 };
@@ -47,8 +47,8 @@ export default {
   label: "TypeScript",
 
   /**
-   * Libraries publish declarations, so they are TypeScript unless the
-   * user opts out.
+   * Libraries publish declarations,
+   * so they are TypeScript unless the user opts out.
    *
    * @param {import('#types').ProjectType} projectType
    */
@@ -58,10 +58,8 @@ export default {
 
   async run(project) {
     /**
-     * if jsconfig exists, switch to tsconfig
-     */
-    /**
-     * if tsconfig exists,
+     * TODO:
+     * - if jsconfig exists, switch to tsconfig
      */
     await addTSConfig(project);
     await updatePackageJson(project);
@@ -89,8 +87,8 @@ export default {
       reasons.push("tsconfig.json is missing");
     }
 
-    // Only projects with their own babel config need the TS plugin in it;
-    // without one (libraries), ember() strips types.
+    // Only projects with their own babel config need the TS plugin in it.
+    // Without one (libraries), ember() strips types.
     if (project.hasFile("babel.config.js") && !(await hasConfiguredTSBabel(project))) {
       if (!explain) return false;
 
@@ -151,6 +149,8 @@ async function updatePackageJson(project) {
 }
 
 /**
+ * Copies the base's tsconfig, unless the project already has one.
+ *
  * @param {import('#utils/project.js').Project} project
  */
 async function addTSConfig(project) {
@@ -183,7 +183,7 @@ async function addTSConfig(project) {
  */
 async function updateBabelConfig(project) {
   if (!project.hasFile("babel.config.js")) {
-    // No babel config to patch (libraries): ember() strips types.
+    // Nothing to patch (libraries): ember() strips types.
     return;
   }
 

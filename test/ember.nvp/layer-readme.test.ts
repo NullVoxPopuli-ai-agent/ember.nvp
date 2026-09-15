@@ -168,13 +168,13 @@ describe("layer: readme", () => {
 
         ### Building
 
-        To build the library:
+        To build the extension:
 
         \`\`\`sh
         pnpm build
         \`\`\`
 
-        or
+        or, to rebuild on change:
 
         \`\`\`sh
         pnpm build:watch

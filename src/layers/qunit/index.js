@@ -18,9 +18,12 @@ const tsDeps = {
 };
 
 /**
- * Libraries don't have the app base's vite stack, so the test build
- * brings the pieces the generated configs and test-helper import
- * directly. Everything else (babel itself, the embroider machinery)
+ * Libraries don't have the app base's vite stack.
+ *
+ * So the test build brings the pieces that the generated configs
+ * and test-helper import directly.
+ *
+ * Everything else (babel itself, the embroider machinery)
  * comes with @nullvoxpopuli/ember-vite.
  */
 const libraryDeps = {
@@ -79,7 +82,6 @@ export default {
       project.directory,
     );
 
-    // Add scripts
     await packageJson.addScripts(
       {
         "build:test": "EMBER_ENV=test NODE_ENV=development vite build --mode development",
@@ -151,10 +153,11 @@ export default {
 };
 
 /**
- * Tests import the library's source (not its published dist), so the
- * `#src/*` subpath must exist before the test files are applied --
- * applying rewrites their import extensions by resolving each specifier
- * through this mapping.
+ * Tests import the library's source, not its published dist.
+ *
+ * The `#src/*` subpath must exist before the test files are applied:
+ * applying rewrites their import extensions
+ * by resolving each specifier through this mapping.
  *
  * @param {import('#utils/project.js').Project} project
  */
@@ -166,12 +169,13 @@ async function addSourceImports(project) {
 }
 
 /**
- * The test babel config is the qunit layer's own (a root babel config,
- * when a library has one, belongs to the publish build), so this layer
- * also keeps the config's TypeScript handling in step with the project:
- * the shipped config carries the TS plugin, which must not survive in a
- * JavaScript project, and must come back when a project adopts the
- * typescript layer later.
+ * The test babel config is the qunit layer's own.
+ * (a root babel config, when a library has one, belongs to the publish build)
+ *
+ * So this layer keeps the config's TypeScript handling in step with the project:
+ * - the shipped config carries the TS plugin
+ * - it must not survive in a JavaScript project
+ * - it must come back when a project adopts the typescript layer later
  *
  * @param {import('#utils/project.js').Project} project
  * @param {boolean} ts

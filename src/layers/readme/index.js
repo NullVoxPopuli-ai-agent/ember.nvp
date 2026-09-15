@@ -74,13 +74,13 @@ ${project.runPrefix} start
 
 ### Building
 
-To build the library:
+To build the extension:
 
 \`\`\`sh
 ${project.runPrefix} build
 \`\`\`
 
-or
+or, to rebuild on change:
 
 \`\`\`sh
 ${project.runPrefix} build:watch
@@ -175,7 +175,6 @@ export default {
    * @param {import('#utils/project.js').Project} project
    */
   async run(project) {
-    // Collect layer docs
     const layerDocs = [];
     for (const layer of project.desires.layers) {
       if (layer.name === "readme" || !layer.readme) {
@@ -199,7 +198,6 @@ export default {
       layerDocsMarkdown = `\n## Features & Tooling\n\n${layerDocs.join("\n\n")}\n`;
     }
 
-    // Merge the layers' snippets into the main readme template
     let content;
     switch (project.type) {
       case "extension":

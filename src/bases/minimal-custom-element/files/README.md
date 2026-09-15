@@ -52,19 +52,22 @@ pnpm start
 ## Structure
 
 - `src/components/counter.gts` is the Ember component.
-- `src/element.ts` is the custom element. Its `connectedCallback` renders the component
-  into the element with `renderComponent` from `@ember/renderer`. Its
-  `disconnectedCallback` destroys that render.
-- `src/register.ts` defines the tag. Consumers import this file for its side effect.
-- `src/index.ts` is the public entry point. It exports the element class and the
-  component.
+- `src/element.ts` is the custom element.
+  Its `connectedCallback` renders the component with `renderComponent` from `@ember/renderer`.
+  Its `disconnectedCallback` destroys that render.
+- `src/register.ts` defines the tag.
+  Consumers import this file for its side effect.
+- `src/index.ts` is the public entry point.
+  It exports the element class and the component.
 - `dist/` is the built output that gets published (git-ignored).
 
 ### Reactive attributes
 
-The element lists its attributes in `observedAttributes`. Each attribute change writes
-to a tracked object. The component reads its args from that object, so the DOM updates
-on the next render. To add an attribute:
+The element lists its attributes in `observedAttributes`.
+Each attribute change writes to a tracked object.
+The component reads its args from that object, so the DOM updates on the next render.
+
+To add an attribute:
 
 1. Add its name to `observedAttributes`.
 2. Give it a default value in the tracked object.
@@ -77,9 +80,10 @@ so every exported value needs an explicit type annotation.
 
 ### Development or production ember
 
-The build bundles the production build of ember. To bundle the development build,
-with assertions and deprecation messages, add the `development` condition in
-`tsdown.config.js`:
+The build bundles the production build of ember.
+
+To bundle the development build (assertions and deprecation messages),
+add the `development` condition in `tsdown.config.js`:
 
 ```js
 inputOptions: { resolve: { conditionNames: ["development"] } },

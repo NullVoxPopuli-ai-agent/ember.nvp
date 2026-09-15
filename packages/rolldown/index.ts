@@ -27,39 +27,52 @@ interface Config {
    */
   bundle?: boolean;
   /**
-   * Options for the babel step; see `BabelOptions`.
+   * Options for the babel step.
+   * See `BabelOptions`.
    */
   babel?: BabelOptions;
 }
 
 /**
- * A batteries-included plugin for building Ember v2 libraries (addons) with
- * rolldown (or tsdown, which is built on rolldown).
+ * A batteries-included plugin for building Ember v2 libraries (addons)
+ * with rolldown, or with tsdown (which is built on rolldown).
  *
- * It bundles everything needed to compile `.gts`/`.gjs` and template-tag
- * (`<template>`) source into publishable output:
+ * It bundles everything needed to compile `.gts` / `.gjs` and
+ * template-tag (`<template>`) source into publishable output:
  *
- * - `emberConfig()` — applies sensible tsdown defaults for a library build
- *   (sourcemaps, `clean`, `dts`, `.js`/`.d.ts` extensions, quiet logging);
- *   anything you set explicitly still wins.
- * - `emberIsolatedDeclarations()` — errors when a tsconfig.json is present
- *   without `isolatedDeclarations: true` (required: it is the only
- *   declaration pipeline that can see compiled template-tag modules).
- * - `emberExternals()` — keeps your dependencies, peerDependencies, and the
- *   ember virtual packages external, so consuming apps resolve them.
- * - `emberBundle()` — bundle mode only, in place of `emberExternals()`:
- *   aliases the ember virtual packages into ember-source,
+ * - `emberConfig()`
+ *   applies sensible tsdown defaults for a library build
+ *   (sourcemaps, `clean`, `dts`, `.js` / `.d.ts` extensions, quiet logging).
+ *   Anything you set explicitly still wins.
+ *
+ * - `emberIsolatedDeclarations()`
+ *   errors when a tsconfig.json is present without `isolatedDeclarations: true`.
+ *   That is the only declaration pipeline that can see compiled template-tag modules.
+ *
+ * - `emberExternals()`
+ *   keeps your dependencies, peerDependencies, and the ember virtual packages external,
+ *   so consuming apps resolve them.
+ *
+ * - `emberBundle()`
+ *   bundle mode only, in place of `emberExternals()`.
+ *   Aliases the ember virtual packages into ember-source,
  *   whose export conditions pick the build to bundle.
- * - `emberTransform()` — preprocesses `<template>` via content-tag and maps
- *   `.gts`/`.gjs` to `.ts`/`.js` so rolldown can understand them.
- * - `emberBabel()` — runs babel (template compilation, decorators, type
- *   stripping) with `babelHelpers: "bundled"`, but only on the files that
- *   actually need it (via `maybeBabel`); everything else stays on the fast
- *   native transform. The library's own `babel.config.js` is used when it
- *   exists; no config file is required.
  *
- * Usage in `tsdown.config.js` (import `defineConfig` from `tsdown` — or from
- * `rolldown` for a `rolldown.config.js` — so it carries the correct types):
+ * - `emberTransform()`
+ *   preprocesses `<template>` via content-tag,
+ *   and maps `.gts` / `.gjs` to `.ts` / `.js` so rolldown can understand them.
+ *
+ * - `emberBabel()`
+ *   runs babel (template compilation, decorators, type stripping)
+ *   with `babelHelpers: "bundled"`.
+ *   Only the files that need it go through babel (via `maybeBabel`).
+ *   Everything else stays on the fast native transform.
+ *   The library's own `babel.config.js` is used when it exists.
+ *   No config file is required.
+ *
+ * Usage in `tsdown.config.js`.
+ * Import `defineConfig` from `tsdown` (or from `rolldown` for a `rolldown.config.js`)
+ * so it carries the correct types:
  *
  * ```js
  * import { defineConfig } from "tsdown";

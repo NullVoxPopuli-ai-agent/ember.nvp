@@ -18,8 +18,8 @@ function readJsonSync(path: string) {
 }
 
 /**
- * Everything the library declares as a `dependency` or `peerDependency` is
- * resolvable by the consuming app, so we never bundle it.
+ * Everything the library declares as a `dependency` or `peerDependency`
+ * is resolvable by the consuming app, so we never bundle it.
  */
 function resolvableDependencies(): Set<string> {
   const deps = new Set<string>();
@@ -79,10 +79,13 @@ function emberSourceProvidedModules(): Set<string> {
 }
 
 /**
- * Keeps the library's declared dependencies and the ember virtual packages
- * (things like `@ember/component`, `@glimmer/tracking`, the template compiler,
- * …) external, so the app that consumes the library resolves them instead of
- * the library bundling copies of them.
+ * Keeps external:
+ * - the library's declared dependencies
+ * - the ember virtual packages
+ *   (things like `@ember/component`, `@glimmer/tracking`, the template compiler, …)
+ *
+ * So the app that consumes the library resolves them,
+ * instead of the library bundling copies of them.
  */
 export function emberExternals(): Plugin {
   let deps: Set<string>;
@@ -100,8 +103,8 @@ export function emberExternals(): Plugin {
     resolveId: {
       order: "pre",
       handler(source) {
-        // Anything with a protocol (`node:`, virtual modules, …) is not ours
-        // to externalize.
+        // Anything with a protocol (`node:`, virtual modules, …)
+        // is not ours to externalize.
         if (source.includes(":")) {
           return null;
         }
@@ -124,10 +127,13 @@ export function emberExternals(): Plugin {
         }
 
         // Modules ember-source provides by renaming them into itself
-        // (`ember-addon.renamed-modules`) — private API like
-        // `@glimmer/runtime` that only exists inside the app's ember-source.
-        // Matched on the full specifier: the renamed modules are module
-        // paths, not packages.
+        // (`ember-addon.renamed-modules`).
+        //
+        // Private API like `@glimmer/runtime`,
+        // which only exists inside the app's ember-source.
+        //
+        // Matched on the full specifier:
+        // the renamed modules are module paths, not packages.
         if (renamedModules.has(source)) {
           return false;
         }
