@@ -12,8 +12,9 @@ import { expect } from "vitest";
 const minimalApp = "minimal-app";
 const minimalAddon = "minimal-library";
 const minimalExtension = "minimal-extension";
+const minimalCustomElement = "minimal-custom-element";
 
-export const bases = [minimalApp, minimalAddon, minimalExtension];
+export const bases = [minimalApp, minimalAddon, minimalExtension, minimalCustomElement];
 
 export const layers = await discoverLayers();
 

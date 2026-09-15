@@ -4,11 +4,13 @@ import { cp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { hasConfiguredTSBabel, prependPlugin } from "#utils/babel.js";
 import { getLatest } from "#utils/npm.js";
+import { isLibraryType } from "#utils/project.js";
 
 const bases = join(import.meta.dirname, "../../bases");
 const appBase = join(bases, "minimal-app/files");
 const extensionBase = join(bases, "minimal-extension/files");
 const libraryBase = join(bases, "minimal-library/files");
+const customElementBase = join(bases, "minimal-custom-element/files");
 
 const sharedDeps = {
   "@glint/ember-tsc": "^1.0.8",
@@ -34,7 +36,7 @@ const libraryDeps = {
 function depsFor(project) {
   return {
     ...sharedDeps,
-    ...(project.type === "library" ? libraryDeps : appDeps),
+    ...(project.isLibrary ? libraryDeps : appDeps),
   };
 }
 
@@ -51,7 +53,7 @@ export default {
    * @param {import('#types').ProjectType} projectType
    */
   defaultValue(projectType) {
-    return projectType === "library";
+    return isLibraryType(projectType);
   },
 
   async run(project) {
@@ -168,6 +170,11 @@ async function addTSConfig(project) {
 
   if (project.type === "library") {
     await cp(join(libraryBase, "tsconfig.json"), project.path("tsconfig.json"));
+    return;
+  }
+
+  if (project.type === "custom-element") {
+    await cp(join(customElementBase, "tsconfig.json"), project.path("tsconfig.json"));
   }
 }
 

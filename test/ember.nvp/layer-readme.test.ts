@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { generate } from "#test-helpers";
+import { generate, mktemp } from "#test-helpers";
 import { rm } from "node:fs/promises";
 import type { Project } from "ember.nvp";
 
@@ -188,6 +188,65 @@ describe("layer: readme", () => {
 
         - \`pnpm format\` - Format code
         - \`pnpm lint:prettier\` - Check code formatting
+        "
+      `);
+    });
+  });
+
+  describe("Custom element project README generation", () => {
+    let project: Project;
+
+    beforeAll(async () => {
+      project = await generate({
+        directory: await mktemp("acme-counter"),
+        type: "custom-element",
+        name: "@acme/counter",
+        packageManager: "npm",
+        layers: ["readme"],
+      });
+      dirs.push(project.directory);
+    });
+
+    it("generates README.md with the registered tag name", async () => {
+      expect(await project.read("README.md")).toMatchInlineSnapshot(`
+        "# @acme/counter
+
+        An Ember component, packaged as a custom element, created with \`ember.nvp\`.
+
+        ## Usage
+
+        Import the \`register\` entry once. It defines the \`<counter-element>\` tag.
+
+        \`\`\`js
+        import "@acme/counter/register";
+        \`\`\`
+
+        \`\`\`html
+        <counter-element label="Clicks" step="2"></counter-element>
+        \`\`\`
+
+        To choose your own tag name, import the class and define it yourself:
+
+        \`\`\`js
+        import { CounterElement } from "@acme/counter";
+
+        customElements.define("my-counter", CounterElement);
+        \`\`\`
+
+        ## Getting Started
+
+        ### Prerequisites
+
+        - Node.js >= 24
+        - npm
+
+        ### Development & Building
+
+        To build the package:
+
+        \`\`\`sh
+        npm run build
+        \`\`\`
         "
       `);
     });

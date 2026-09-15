@@ -227,6 +227,31 @@ importers:
         specifier: ^8.0.14
         version: 8.0.14(@types/node@25.0.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)
 
+  src/bases/minimal-custom-element/files:
+    dependencies:
+      decorator-transforms:
+        specifier: ^2.3.2
+        version: 2.3.2(@babel/core@7.29.7)
+    devDependencies:
+      '@ember/library-tsconfig':
+        specifier: ^2.0.0
+        version: 2.0.0
+      '@glimmer/component':
+        specifier: ^2.1.1
+        version: 2.1.1
+      '@nullvoxpopuli/ember-rolldown':
+        specifier: workspace:*
+        version: link:../../../../packages/rolldown
+      ember-source:
+        specifier: ~7.2.0
+        version: 7.2.0(@glimmer/component@2.1.1)
+      tsdown:
+        specifier: ^0.22.7
+        version: 0.22.13(@tsdown/css@0.22.13)(@volar/typescript@2.4.28)(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   src/bases/minimal-extension/files:
     dependencies:
       '@embroider/macros':

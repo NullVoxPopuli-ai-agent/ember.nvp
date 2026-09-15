@@ -32,12 +32,15 @@ const NOT_YET_SUPPORTED: Record<ProjectType, Set<string>> = {
   library: new Set(["inspector-support"]),
   // publish checks: extensions aren't published (to npm)
   extension: new Set(["publint", "are-the-types-wrong"]),
+  // same toolchain as libraries: no Application either
+  "custom-element": new Set(["inspector-support"]),
 };
 
 const TYPE_FOR_BASE: Record<(typeof bases)[number], ProjectType> = {
   "minimal-app": "app",
   "minimal-library": "library",
   "minimal-extension": "extension",
+  "minimal-custom-element": "custom-element",
 };
 
 /**
