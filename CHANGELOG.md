@@ -1,5 +1,19 @@
 # Changelog
 
+## Release (2026-09-21)
+
+* ember.nvp 1.8.0 (minor)
+* @nullvoxpopuli/ember-build-tooling-utils 1.2.0 (minor)
+* @nullvoxpopuli/ember-rolldown 2.9.0 (minor)
+* @nullvoxpopuli/ember-vite 1.2.0 (minor)
+
+#### :rocket: Enhancement
+* `ember.nvp`, `@nullvoxpopuli/ember-build-tooling-utils`, `@nullvoxpopuli/ember-rolldown`, `@nullvoxpopuli/ember-vite`
+  * [#135](https://github.com/NullVoxPopuli/ember.nvp/pull/135) Accept @babel/core 8 in the plugin packages ([@NullVoxPopuli](https://github.com/NullVoxPopuli))
+
+#### Committers: 1
+- [@NullVoxPopuli](https://github.com/NullVoxPopuli)
+
 ## Release (2026-09-15)
 
 * ember.nvp 1.7.1 (patch)
