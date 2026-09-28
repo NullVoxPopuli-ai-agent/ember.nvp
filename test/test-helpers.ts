@@ -120,7 +120,10 @@ export function cli(args: string[] = []) {
   let output = new MockWritable();
   let input = new MockReadable();
 
-  let execaPromise = execa("node", args, { shell: true, stdout: output, stdin: input });
+  let execaPromise = execa("node", [cliPath, ...args]);
+  if (execaPromise.stdout) {
+    execaPromise.stdout.pipe(output);
+  }
 
   return {
     execaPromise,
