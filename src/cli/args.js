@@ -69,14 +69,11 @@ if (isHelpRequested) {
   process.exit(0);
 }
 
-/** @type {Record<string, import("node:util").ParseArgsOptionDescriptor>} */
-const options = { ...coreOptions };
-
 /**
  * The CLI options are parsed using Node's `parseArgs` in default strict mode.
  */
 const { values } = parseArgs({
-  options,
+  options: coreOptions,
 });
 
 const { replaceOrUpdate, name, type, layers = [], packageManager, path, confirm, write } = values;
