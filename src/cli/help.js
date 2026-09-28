@@ -27,7 +27,6 @@ export function printHelp(coreOptions) {
     if (desc || choices) {
       console.log(`      ${desc}${choices}`);
     }
+    console.log("");
   }
-
-  console.log("");
 }

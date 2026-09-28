@@ -20,20 +20,28 @@ const BASIC_HELP_OUTPUT = `
     Core Options:
       -h, --help <boolean>
           Show CLI help and option details
+
           --name <string>
           Name of the project
+
           --path <string>
           Target directory path for the project
+
           --type <string>
           Type of project to generate [choices: "app", "addon", "library", "extension", "custom-element"]
+
           --confirm <string>
           Bypass target confirmation step [choices: "yes", "no"]
+
           --layers <string>
           Layers to apply to the project (repeat for multiple layers)
+
           --packageManager <string>
           Package manager to configure for the project [choices: "npm", "pnpm"]
+
           --replaceOrUpdate <string>
           Strategy to use if target directory exists [choices: "replace", "update"]
+
           --write <string>
           Confirm writing changes to disk [choices: "yes", "no"]
     "
