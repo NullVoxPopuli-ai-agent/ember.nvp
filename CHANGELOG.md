@@ -1,5 +1,18 @@
 # Changelog
 
+## Release (2026-09-28)
+
+* ember.nvp 1.9.0 (minor)
+
+#### :rocket: Enhancement
+* `ember.nvp`
+  * [#139](https://github.com/NullVoxPopuli/ember.nvp/pull/139) CLI help ([@tcjr](https://github.com/tcjr))
+  * [#137](https://github.com/NullVoxPopuli/ember.nvp/pull/137) Add an expect-type layer for type tests ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 2
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+- Tom Carter ([@tcjr](https://github.com/tcjr))
+
 ## Release (2026-09-21)
 
 * ember.nvp 1.8.0 (minor)
