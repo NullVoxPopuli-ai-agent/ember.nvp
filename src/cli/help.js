@@ -23,7 +23,7 @@ export function printHelp(coreOptions) {
         )
       : "";
 
-    console.log(`  ${alias}${styleText("cyan", flag)} ${typeStr}`);
+    console.log(`  ${styleText("cyan", alias)}${styleText("cyan", flag)} ${typeStr}`);
     if (desc || choices) {
       console.log(`      ${desc}${choices}`);
     }
