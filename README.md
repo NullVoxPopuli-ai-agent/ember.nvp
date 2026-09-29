@@ -178,7 +178,7 @@ Type checking with native TypeScript 7 and [ember-content-mapper](https://github
 
 - `lint:types` runs `tsc --noEmit --runExternalCode`.
 - Replaces the TypeScript layer when you select both.
-- ESLint and the library build keep TypeScript 6, because they need its API.
+- ESLint keeps TypeScript 6, because typescript-eslint needs its API.
 
 ### expect-type (optional)
 

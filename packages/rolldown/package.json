@@ -50,7 +50,8 @@
     "@nullvoxpopuli/ember-build-tooling-utils": "workspace:*",
     "babel-plugin-ember-template-compilation": "^4.0.0",
     "content-tag": "^4.2.0",
-    "decorator-transforms": "^2.4.0"
+    "decorator-transforms": "^2.4.0",
+    "get-tsconfig": "^4.14.3"
   },
   "engines": {
     "node": ">= 24"

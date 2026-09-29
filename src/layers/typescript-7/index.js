@@ -19,7 +19,7 @@ const TSSERVER_PLUGIN = "@glint/tsserver-plugin";
 
 /**
  * `@typescript/native` owns the `tsc` bin.
- * `typescript` is left to the tools that need TypeScript 6, see `syncTypeScript6`.
+ * `typescript` is left to eslint, which needs TypeScript 6, see `syncTypeScript6`.
  *
  * The mapper transforms with `@glint/ember-tsc` and references its types.
  * `@glint/template` types the signatures written by hand.
@@ -137,13 +137,6 @@ export default {
       reasons.push(
         `package.json's typescript must be @typescript/typescript6, or tsc is ambiguous`,
       );
-    }
-
-    // The build reads tsconfig.json through typescript
-    if (project.isLibrary && !hasTypeScript6(manifest)) {
-      if (!explain) return false;
-
-      reasons.push(`package.json is missing typescript (TypeScript 6) for the build`);
     }
 
     if (explain) {

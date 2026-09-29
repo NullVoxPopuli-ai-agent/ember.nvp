@@ -14,9 +14,7 @@ const customElementBase = join(bases, "minimal-custom-element/files");
 /**
  * TypeScript 7 has no JavaScript API.
  *
- * Tools that import `typescript` keep using TypeScript 6:
- * - typescript-eslint
- * - the library build, which reads tsconfig.json with it
+ * typescript-eslint imports `typescript`, so it keeps using TypeScript 6.
  *
  * `@typescript/typescript6` is TypeScript 6 with a `tsc6` bin,
  * so `tsc` stays TypeScript 7.
@@ -58,15 +56,13 @@ export function usesTypeScript7(project, manifest) {
  * @returns {boolean}
  */
 export function needsTypeScript6(project, manifest) {
-  return (
-    project.isLibrary || project.wantsLayer("eslint") || Boolean(manifest.devDependencies?.eslint)
-  );
+  return project.wantsLayer("eslint") || Boolean(manifest.devDependencies?.eslint);
 }
 
 /**
  * In a TypeScript 7 project:
  * - keeps `@typescript/typescript6`
- * - adds it when a tool needs TypeScript 6
+ * - adds it when eslint needs TypeScript 6
  * - removes any other `typescript`, because it would be a second `tsc`
  *
  * @param {import('#utils/project.js').Project} project

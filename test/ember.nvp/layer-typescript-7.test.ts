@@ -198,10 +198,8 @@ describe("layer: typescript-7", () => {
       await expectIsSetup(project, typescript7);
     });
 
-    it("keeps TypeScript 6 for the build", async () => {
-      expect((await devDependencies(project))["typescript"]).toMatch(
-        /^npm:@typescript\/typescript6@/,
-      );
+    it("has no typescript, because nothing needs TypeScript 6", async () => {
+      expect(await devDependencies(project)).not.toHaveProperty("typescript");
     });
 
     it("type checking works", async () => {
