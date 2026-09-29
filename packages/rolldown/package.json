@@ -46,6 +46,7 @@
     "@babel/core": "^7.28.10 || ^8.0.0",
     "@babel/plugin-transform-typescript": "^7.28.10 || ^8.0.0",
     "@embroider/core": "^4.4.2",
+    "@jridgewell/remapping": "^2.3.5",
     "@nullvoxpopuli/ember-build-tooling-utils": "workspace:*",
     "babel-plugin-ember-template-compilation": "^4.0.0",
     "content-tag": "^4.2.0",
@@ -67,6 +68,7 @@
     }
   },
   "devDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
     "@tsdown/css": "^0.22.13",
     "rolldown": "^1.2.0",
     "tsdown": "^0.22.9",

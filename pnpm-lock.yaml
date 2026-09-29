@@ -109,6 +109,9 @@ importers:
       '@embroider/core':
         specifier: ^4.4.2
         version: 4.4.2(@glint/template@1.7.7)
+      '@jridgewell/remapping':
+        specifier: ^2.3.5
+        version: 2.3.5
       '@nullvoxpopuli/ember-build-tooling-utils':
         specifier: workspace:*
         version: link:../build-tooling-utils
@@ -122,6 +125,9 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0(@babel/core@7.29.7)
     devDependencies:
+      '@jridgewell/trace-mapping':
+        specifier: ^0.3.31
+        version: 0.3.31
       '@tsdown/css':
         specifier: ^0.22.13
         version: 0.22.13(jiti@2.6.1)(postcss@8.5.15)(tsdown@0.22.13)
