@@ -45,7 +45,7 @@ const TYPE_FOR_BASE: Record<(typeof bases)[number], ProjectType> = {
 };
 
 /**
- * Layers that only add lint / format / publish checks.
+ * Layers that only add lint / format / type / publish checks.
  *
  * They don't affect the runtime shape of a project,
  * so they permutate among themselves in a small "checks" matrix
@@ -62,6 +62,7 @@ const CHECK_LAYERS = new Set<string>([
   "publint",
   "are-the-types-wrong",
   "expect-type",
+  "typescript-7",
 ]);
 
 type PermutationGroup = "main" | "checks";

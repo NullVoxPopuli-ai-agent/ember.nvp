@@ -15,6 +15,10 @@ const scripts = {
   "lint:type-tests": "ember-tsc --noEmit --project type-tests",
 };
 
+const typescript7Scripts = {
+  "lint:type-tests": "tsc --noEmit --runExternalCode --project type-tests",
+};
+
 /**
  * @type {import('#types').Layer}
  */
@@ -30,7 +34,10 @@ export default {
 
     await applyFolderTo(join(import.meta.dirname, "files"), project);
     await packageJson.addDevDependencies(await getLatest(deps), project.directory);
-    await packageJson.addScripts(scripts, project.directory);
+    await packageJson.addScripts(
+      (await project.hasOrWantsLayer("typescript-7")) ? typescript7Scripts : scripts,
+      project.directory,
+    );
   },
 
   /**

@@ -35,6 +35,7 @@ export async function getLatest(deps) {
       }
 
       let version;
+      let alias = parseAlias(range);
 
       /**
        * HACK FOR CI.
@@ -54,6 +55,8 @@ export async function getLatest(deps) {
       if (needsLocalLink && LOCAL_PACKAGES[dep]) {
         version =
           "link:" + resolve(join(import.meta.dirname, "../../packages", LOCAL_PACKAGES[dep]));
+      } else if (alias) {
+        version = `npm:${alias.name}@${await latestVersion(alias.name, { version: alias.range })}`;
       } else {
         if (range == "workspace:*") {
           range = "latest";
@@ -69,6 +72,30 @@ export async function getLatest(deps) {
   );
 
   return Object.fromEntries(results);
+}
+
+/**
+ * An npm alias installs a package under another name:
+ *
+ *   "@typescript/native": "npm:typescript@^7.1.0-0"
+ *
+ * The range belongs to the aliased package.
+ *
+ * @param {string} range
+ * @returns {{ name: string; range: string } | undefined}
+ */
+function parseAlias(range) {
+  if (!range.startsWith("npm:")) return;
+
+  let spec = range.slice("npm:".length);
+  // The last `@` starts the range. A scope's `@` is at index 0.
+  let at = spec.lastIndexOf("@");
+
+  if (at <= 0) {
+    return { name: spec, range: "latest" };
+  }
+
+  return { name: spec.slice(0, at), range: spec.slice(at + 1) };
 }
 
 async function needsWorkspace() {

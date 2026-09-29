@@ -5,6 +5,7 @@ import { maybeLintWithConcurrently } from "#consolidators/linting.js";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { hasDevDeps } from "#utils/manifest.js";
+import { hasTypeScript6, syncTypeScript6, usesTypeScript7 } from "#utils/typescript.js";
 
 /**
  * @type {import('#types').Layer}
@@ -31,6 +32,9 @@ export default {
       },
       project.directory,
     );
+
+    // typescript-eslint needs TypeScript 6
+    await syncTypeScript6(project);
 
     await maybeLintWithConcurrently(project);
   },
@@ -60,6 +64,12 @@ export default {
 
     if (!hasDevDeps(manifest, ["ember-eslint", "eslint"])) {
       reasons.push("missing required dependencies: ember-eslint, eslint");
+
+      if (!explain) return false;
+    }
+
+    if (usesTypeScript7(project, manifest) && !hasTypeScript6(manifest)) {
+      reasons.push("missing typescript (TypeScript 6) for typescript-eslint");
 
       if (!explain) return false;
     }

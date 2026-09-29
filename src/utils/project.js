@@ -129,6 +129,10 @@ export class Project {
           (layer) => layer.name === "qunit" || layer.name === "vitest",
         );
       }
+      // hasLayer needs no case: the typescript layer's isSetup covers typescript-7
+      case "typescript": {
+        return this.desires.layers.some((layer) => layer.name.startsWith("typescript"));
+      }
       default: {
         return this.desires.layers.some((layer) => layer.name === name);
       }

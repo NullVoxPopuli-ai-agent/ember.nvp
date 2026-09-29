@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 
+import { parseTsconfig, type TsConfigJsonResolved } from "get-tsconfig";
 import type { Plugin } from "rolldown";
 import type { UserConfig } from "tsdown";
 
@@ -61,8 +62,11 @@ function resolveTsconfigPath(option: string | boolean | undefined): string | und
  * Isolated declarations then constrain exactly the code that gets declarations emitted,
  * and nothing else.
  *
- * Projects with no tsconfig (JavaScript libraries) or without the `typescript` package
- * have no declarations to emit, so there is nothing to check.
+ * Projects with no tsconfig (JavaScript libraries) have no declarations to emit,
+ * so there is nothing to check.
+ *
+ * The tsconfig is read without the `typescript` package.
+ * TypeScript 7 has no JavaScript API, and a TypeScript 7 library can have no TypeScript 6.
  *
  * `tsconfig: false` is different.
  * It is an explicit opt-out.
@@ -114,26 +118,18 @@ export function emberIsolatedDeclarations(): Plugin {
 
       if (!tsconfigPath || !existsSync(tsconfigPath)) return;
 
-      let ts: typeof import("typescript");
+      let tsconfig: TsConfigJsonResolved;
 
       try {
-        ts = (await import("typescript")).default;
+        // Resolves `extends` chains, so the flag may come from a base config.
+        tsconfig = parseTsconfig(tsconfigPath);
       } catch {
-        return;
-      }
-
-      const { config, error } = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
-
-      if (error) {
         // Unreadable / unparsable tsconfig.
         // tsc itself will report this with a better message than we can.
         return;
       }
 
-      // Resolves `extends` chains, so the flag may come from a base config.
-      const parsed = ts.parseJsonConfigFileContent(config, ts.sys, dirname(tsconfigPath));
-
-      if (parsed.options.isolatedDeclarations !== true) {
+      if (tsconfig.compilerOptions?.isolatedDeclarations !== true) {
         this.error(
           `${tsconfigPath} must set "compilerOptions.isolatedDeclarations": true.\n\n` +
             `Declarations for .gts/.gjs (template tag) modules can only be emitted by the ` +

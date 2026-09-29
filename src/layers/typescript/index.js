@@ -1,16 +1,8 @@
-import { js, packageJson } from "ember-apply";
-import { join } from "node:path";
-import { cp } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { hasConfiguredTSBabel, prependPlugin } from "#utils/babel.js";
+import { packageJson } from "ember-apply";
+import { hasConfiguredTSBabel } from "#utils/babel.js";
 import { getLatest } from "#utils/npm.js";
 import { isLibraryType } from "#utils/project-type.js";
-
-const bases = join(import.meta.dirname, "../../bases");
-const appBase = join(bases, "minimal-app/files");
-const extensionBase = join(bases, "minimal-extension/files");
-const libraryBase = join(bases, "minimal-library/files");
-const customElementBase = join(bases, "minimal-custom-element/files");
+import { addTSConfig, updateBabelConfig } from "#utils/typescript.js";
 
 const sharedDeps = {
   "@glint/ember-tsc": "^1.0.8",
@@ -57,6 +49,9 @@ export default {
   },
 
   async run(project) {
+    // typescript-7 sets up TypeScript in its own way
+    if (await project.hasOrWantsLayer("typescript-7")) return;
+
     /**
      * TODO:
      * - if jsconfig exists, switch to tsconfig
@@ -80,6 +75,14 @@ export default {
    */
   async isSetup(project, explain) {
     const reasons = [];
+
+    let hasTypeScript7 = await project.hasLayer("typescript-7");
+
+    if (hasTypeScript7 || project.wantsLayer("typescript-7")) {
+      if (!hasTypeScript7) reasons.push("typescript-7 is not set up");
+
+      return explain ? { isSetup: hasTypeScript7, reasons } : hasTypeScript7;
+    }
 
     if (!project.hasFile("tsconfig.json")) {
       if (!explain) return false;
@@ -146,60 +149,4 @@ async function updatePackageJson(project) {
     });
     Object.assign(json.devDependencies, await getLatest(depsFor(project)));
   }, project.directory);
-}
-
-/**
- * Copies the base's tsconfig, unless the project already has one.
- *
- * @param {import('#utils/project.js').Project} project
- */
-async function addTSConfig(project) {
-  if (existsSync(project.path("tsconfig.json"))) {
-    return;
-  }
-
-  if (project.type === "app") {
-    await cp(join(appBase, "tsconfig.json"), project.path("tsconfig.json"));
-    return;
-  }
-
-  if (project.type === "extension") {
-    await cp(join(extensionBase, "tsconfig.json"), project.path("tsconfig.json"));
-    return;
-  }
-
-  if (project.type === "library") {
-    await cp(join(libraryBase, "tsconfig.json"), project.path("tsconfig.json"));
-    return;
-  }
-
-  if (project.type === "custom-element") {
-    await cp(join(customElementBase, "tsconfig.json"), project.path("tsconfig.json"));
-  }
-}
-
-/**
- * @param {import('#utils/project.js').Project} project
- */
-async function updateBabelConfig(project) {
-  if (!project.hasFile("babel.config.js")) {
-    // Nothing to patch (libraries): ember() strips types.
-    return;
-  }
-
-  if (await hasConfiguredTSBabel(project)) {
-    return;
-  }
-
-  await prependPlugin(
-    project,
-    `[
-      "@babel/plugin-transform-typescript",
-      {
-        allExtensions: true,
-        onlyRemoveTypeImports: true,
-        allowDeclareFields: true,
-      },
-    ]`,
-  );
 }
