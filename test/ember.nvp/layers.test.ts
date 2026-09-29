@@ -23,6 +23,7 @@ describe("discoverLayers", () => {
         "readme",
         "renovate",
         "typescript",
+        "typescript-7",
         "vitest",
       ]
     `);

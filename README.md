@@ -172,6 +172,14 @@ Code formatting with:
 
 Super experimental vitest setup using [ember-vitest](https://github.com/NullVoxPopuli/ember-vitest)
 
+### TypeScript 7.1+ (optional)
+
+Type checking with native TypeScript 7 and [ember-content-mapper](https://github.com/NullVoxPopuli/ember-content-mapper) for `.gts` and `.gjs`.
+
+- `lint:types` runs `tsc --noEmit --runExternalCode`.
+- Replaces the TypeScript layer when you select both.
+- ESLint and the library build keep TypeScript 6, because they need its API.
+
 ### expect-type (optional)
 
 Type tests for TypeScript libraries with [expect-type](https://github.com/mmkal/expect-type).
