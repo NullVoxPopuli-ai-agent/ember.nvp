@@ -99,11 +99,8 @@ async function traced(files: Record<string, string>, needles: string[]): Promise
 
       if (!source || sourceLine === null || column === null) return `${needle} -> (unmapped)`;
 
-      // A .gts without <template> loads as-is, with no map,
-      // so its source is the virtual .ts id.
       const file = path.basename(source);
-      const content = files[file] ?? files[file.replace(/\.ts$/, ".gts")]!;
-      const text = content.split("\n")[sourceLine - 1]!.slice(column);
+      const text = files[file]?.split("\n")[sourceLine - 1]?.slice(column) ?? "(no such file)";
 
       return `${needle} -> ${file}:${sourceLine}:${column}  ${text}`;
     })
@@ -369,6 +366,44 @@ describe("emberTransform (full plugin via rolldown)", () => {
     expect(sources.some((source) => source.endsWith("foo.gts"))).toBe(true);
   });
 
+  it("names the .gts file in the map of a .gts with no <template>", async () => {
+    // content-tag doesn't run on such a module, so it has no map from content-tag.
+    // It still loads under the virtual .ts id, which is not a file on disk.
+    // helpers.gts also goes through the specifier rewrite, and plain.gts doesn't.
+    const dir = await mkdtemp(path.join(tmpdir(), "ember-rolldown-map-"));
+
+    const files = {
+      "index.ts": [
+        `export { double } from './helpers.gts';`,
+        `export { half } from './plain.gts';`,
+      ].join("\n"),
+      "helpers.gts": [
+        `import { half } from './plain.gts';`,
+        `export function double(value: number): number {`,
+        `  return half(value) * 4;`,
+        `}`,
+      ].join("\n"),
+      "plain.gts": `export function half(value: number): number {\n  return value / 2;\n}`,
+    };
+
+    for (const [relative, source] of Object.entries(files)) {
+      await writeFile(path.join(dir, relative), source, "utf8");
+    }
+
+    const build = await rolldown({
+      input: path.join(dir, "index.ts"),
+      plugins: [emberTransform()],
+      onwarn() {},
+    });
+
+    const { output } = await build.generate({ format: "es", sourcemap: true });
+    const [chunk] = output;
+
+    // index.ts only re-exports, so it contributes no code and no source.
+    const sources = chunk.map!.sources.map((source) => path.basename(source)).sort();
+    expect(sources).toEqual(["helpers.gts", "plain.gts"]);
+  });
+
   it("maps a rewritten .gts module to its exact source lines and columns", async () => {
     // content-tag reprints the module.
     // A doc comment's closing `*/` and the declaration after it share one line of its output.
@@ -458,8 +493,8 @@ describe("emberTransform (full plugin via rolldown)", () => {
     );
 
     expect(result).toMatchInlineSnapshot(`
-      "helper() { -> other.ts:1:16  helper(): string {
-      return "x" -> other.ts:2:2  return 'x';
+      "helper() { -> other.gts:1:16  helper(): string {
+      return "x" -> other.gts:2:2  return 'x';
       Widget = class -> widget.gts:6:13  Widget {
       name() -> widget.gts:7:6  name(): string {
       return helper -> widget.gts:8:4  return helper();"

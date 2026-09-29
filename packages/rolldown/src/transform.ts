@@ -237,8 +237,21 @@ export function emberTransform(): Plugin {
             return { code, map };
           }
 
+          // No map here would attribute the code to the virtual id,
+          // a file that does not exist.
+          // An identity map names the real file instead.
+          // It needs a segment for every column (`hires`), like the specifier rewrite's.
+          //
+          // The backing gets no map: declaration lines already match the source.
           backings.set(id, { fileName });
-          return source;
+          return {
+            code: source,
+            map: new MagicString(source).generateMap({
+              source: fileName,
+              includeContent: true,
+              hires: true,
+            }),
+          };
         }
 
         return null;
