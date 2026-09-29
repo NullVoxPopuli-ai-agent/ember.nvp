@@ -44,6 +44,13 @@ const BASIC_HELP_OUTPUT = `
 
           --write <string>
           Confirm writing changes to disk [choices: "yes", "no"]
+
+    Layer Options:
+          --eslint-bundled.preset <string>
+          Which ESLint config? [choices: "ember", "nvp"] [default: "ember"]
+
+          --typescript.version <string>
+          Which TypeScript version? [choices: "7", "6"] [default: "7"]
     "
   `;
 

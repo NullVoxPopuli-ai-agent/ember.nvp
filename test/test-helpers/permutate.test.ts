@@ -25,12 +25,7 @@ describe("permutate", () => {
   });
 
   it("enforces mutual exclusivity for eslint-prefixed entries", () => {
-    const result = permutate([
-      "eslint-bundled-ember",
-      "eslint-bundled-nvp",
-      "eslint-ejected",
-      "other",
-    ]);
+    const result = permutate(["eslint-bundled", "eslint-ejected", "other"]);
 
     // Check that no permutation has more than one eslint-prefixed entry
     for (const permutation of result) {
@@ -40,7 +35,7 @@ describe("permutate", () => {
   });
 
   it("allows permutations with 0 or 1 eslint entry", () => {
-    const result = permutate(["eslint-bundled-ember", "eslint-bundled-nvp", "other"]);
+    const result = permutate(["eslint-bundled", "eslint-ejected", "other"]);
 
     const hasNoEslint = result.some((perm) => !perm.some((item) => item.startsWith("eslint-")));
     const hasOneEslint = result.some(

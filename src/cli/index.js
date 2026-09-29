@@ -34,8 +34,20 @@ async function main() {
   const replaceOrUpdate = await askReplaceOrUpdate(projectPath);
   const projectType = await askProjectType();
   const selectedLayers = await askLayers(projectType);
-  const layerOptions = await askLayerOptions(selectedLayers);
   const packageManager = await askPackageManager();
+
+  // Layer options start from what the project already uses
+  const existing =
+    replaceOrUpdate === "update"
+      ? new Project(projectPath, {
+          name: projectName,
+          type: projectType,
+          path: projectPath,
+          layers: selectedLayers,
+          packageManager,
+        })
+      : undefined;
+  const layerOptions = await askLayerOptions(selectedLayers, existing);
 
   await askIfOK();
 

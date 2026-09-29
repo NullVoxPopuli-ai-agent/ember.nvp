@@ -11,8 +11,7 @@ describe("discoverLayers", () => {
     expect(layerNames).toMatchInlineSnapshot(`
       [
         "are-the-types-wrong",
-        "eslint-bundled-ember",
-        "eslint-bundled-nvp",
+        "eslint-bundled",
         "expect-type",
         "git",
         "github-actions",
@@ -23,7 +22,6 @@ describe("discoverLayers", () => {
         "readme",
         "renovate",
         "typescript",
-        "typescript-7",
         "vitest",
       ]
     `);

@@ -31,6 +31,13 @@ export interface LayerOptionSchema {
    * `false` rejects it with a generic message.
    */
   validate?: (value: any) => boolean | string | undefined;
+  /**
+   * Reads the value that an existing project uses now.
+   *
+   * When updating a project, the prompt starts at this value instead of `default`,
+   * so that pressing enter keeps the project as it is.
+   */
+  detect?: (project: Project) => unknown;
 }
 
 export interface LayerOptionsSchema {
@@ -63,8 +70,10 @@ export interface Layer {
    *
    * run _may_ be invoked multiple times,
    * so it's important to not require interaction here
+   *
+   * `options` are this layer's options, with defaults filled in.
    */
-  run: (project: Project, options?: Record<string, any>) => Promise<void>;
+  run: (project: Project, options: Record<string, any>) => Promise<void>;
   isSetup: <Explain extends boolean = false>(
     project: Project,
     explain?: Explain,

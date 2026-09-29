@@ -8,9 +8,10 @@ import { validateOption } from "./validate-option.js";
  * Skips options that were explicitly provided via CLI flags.
  *
  * @param {import('#types').DiscoveredLayer[]} selectedLayers
+ * @param {import('#utils/project.js').Project} [existing] the project being updated, for `detect`
  * @returns {Promise<Record<string, Record<string, any>>>}
  */
-export async function askLayerOptions(selectedLayers) {
+export async function askLayerOptions(selectedLayers, existing) {
   const cliOptions = parseLayerOptionsFromParsedArgs(selectedLayers);
   /** @type {Record<string, Record<string, any>>} */
   const result = {};
@@ -30,8 +31,9 @@ export async function askLayerOptions(selectedLayers) {
       }
 
       const message = `${styleText("magentaBright", layer.name)}: ${schema.prompt}`;
+      const detected = existing && schema.detect ? await schema.detect(existing) : undefined;
 
-      layerResult[key] = await ask(message, schema);
+      layerResult[key] = await ask(message, schema, detected ?? schema.default);
     }
   }
 
@@ -41,13 +43,14 @@ export async function askLayerOptions(selectedLayers) {
 /**
  * @param {string} message
  * @param {import('#types').LayerOptionSchema} schema
+ * @param {any} initial
  * @returns {Promise<unknown>}
  */
-async function ask(message, schema) {
+async function ask(message, schema, initial) {
   switch (schema.type) {
     case "text":
     case "number": {
-      const fallback = schema.default === undefined ? undefined : String(schema.default);
+      const fallback = initial === undefined ? undefined : String(initial);
 
       const answer = await p.text({
         message,
@@ -76,7 +79,7 @@ async function ask(message, schema) {
       return exitIfCancelled(
         await p.confirm({
           message,
-          initialValue: schema.default ?? true,
+          initialValue: initial ?? true,
         }),
       );
 
@@ -85,7 +88,7 @@ async function ask(message, schema) {
         await p.select({
           message,
           options: schema.options ?? [],
-          initialValue: schema.default,
+          initialValue: initial,
         }),
       );
 
@@ -95,7 +98,7 @@ async function ask(message, schema) {
         const answer = await p.multiselect({
           message,
           options: schema.options ?? [],
-          initialValues: schema.default ?? [],
+          initialValues: initial ?? [],
           required: false,
         });
 

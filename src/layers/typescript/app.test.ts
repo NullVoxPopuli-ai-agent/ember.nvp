@@ -8,6 +8,9 @@ const expect = hardExpect.soft;
 
 let githubActionsLayer = layers.find((layer) => layer.name === "github-actions")!;
 
+// version 7 is covered in test/ember.nvp/layer-typescript.test.ts
+const options = { typescript: { version: "6" } };
+
 describe("starting with javascript", () => {
   let project: Project;
 
@@ -15,6 +18,7 @@ describe("starting with javascript", () => {
     project = await generate({
       type: "app",
       packageManager: "pnpm",
+      options,
       layers: ["git"],
     });
   });
@@ -41,6 +45,7 @@ describe("starting with typescript", () => {
     project = await generate({
       type: "app",
       packageManager: "pnpm",
+      options,
       layers: ["typescript", "git"],
     });
   });
@@ -67,6 +72,7 @@ describe("package.json scripts", () => {
     project = await generate({
       type: "app",
       packageManager: "pnpm",
+      options,
       layers: ["typescript", "git"],
     });
 

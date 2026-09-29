@@ -4,22 +4,86 @@ import { formatLabel } from "#utils/cli.js";
 import { maybeLintWithConcurrently } from "#consolidators/linting.js";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { hasDevDeps } from "#utils/manifest.js";
+import { hasDevDeps, readManifest } from "#utils/manifest.js";
 import { hasTypeScript6, syncTypeScript6, usesTypeScript7 } from "#utils/typescript.js";
+
+/**
+ * The config package of each preset.
+ *
+ * Each preset also has a folder in `files/`.
+ *
+ * @type {Record<string, Record<string, string>>}
+ */
+const PRESETS = {
+  ember: { "ember-eslint": "^1.0.0" },
+  nvp: { "@nullvoxpopuli/eslint-configs": "^7.0.0" },
+};
+
+/**
+ * @param {Record<string, any>} manifest
+ * @returns {string | undefined}
+ */
+function presetIn(manifest) {
+  for (const [preset, deps] of Object.entries(PRESETS)) {
+    if (hasDevDeps(manifest, deps)) return preset;
+  }
+
+  return undefined;
+}
+
+/**
+ * @param {import('#utils/project.js').Project} project
+ * @returns {string | undefined} undefined when the layer is not selected
+ */
+function wantedPreset(project) {
+  if (!project.wantsLayer("eslint-bundled")) return undefined;
+
+  return project.getLayerOptions("eslint-bundled").preset;
+}
 
 /**
  * @type {import('#types').Layer}
  */
 export default {
-  label: formatLabel("ESLint", "NullVoxPopuli's encapsulated config"),
+  label: formatLabel("ESLint", "encapsulated config"),
   hint: `Minimal dependencies added to package.json`,
 
-  async run(project) {
-    await files.applyFolder(join(import.meta.dirname, "files"), project.directory);
+  options: {
+    preset: {
+      type: "select",
+      prompt: "Which ESLint config?",
+      default: "ember",
+      options: [
+        {
+          value: "ember",
+          label: "ember-eslint",
+          hint: "Not official, but follows the official configuration",
+        },
+        {
+          value: "nvp",
+          label: "@nullvoxpopuli/eslint-configs",
+          hint: "NullVoxPopuli's config for apps, libraries, TypeScript, and more",
+        },
+      ],
+      async detect(project) {
+        return presetIn(await readManifest(project));
+      },
+    },
+  },
+
+  async run(project, { preset }) {
+    await files.applyFolder(join(import.meta.dirname, "files", preset), project.directory);
+
+    // Only one preset at a time, so that switching presets leaves nothing behind
+    for (const [other, deps] of Object.entries(PRESETS)) {
+      if (other === preset) continue;
+
+      await packageJson.removeDevDependencies(Object.keys(deps), project.directory);
+    }
 
     await packageJson.addDevDependencies(
       await getLatest({
-        "@nullvoxpopuli/eslint-configs": "^7.0.0",
+        ...PRESETS[preset],
         eslint: "^10.9.1",
       }),
       project.directory,
@@ -61,9 +125,16 @@ export default {
     }
 
     let manifest = await packageJson.read(project.directory);
+    let wanted = wantedPreset(project);
 
-    if (!hasDevDeps(manifest, ["@nullvoxpopuli/eslint-configs", "eslint"])) {
-      reasons.push("missing required dependencies: @nullvoxpopuli/eslint-configs, eslint");
+    if (!hasDevDeps(manifest, ["eslint"])) {
+      reasons.push("missing required dependency: eslint");
+
+      if (!explain) return false;
+    }
+
+    if (wanted ? !hasDevDeps(manifest, PRESETS[wanted] ?? {}) : !presetIn(manifest)) {
+      reasons.push(`missing the config package of the ${wanted ?? "ember or nvp"} preset`);
 
       if (!explain) return false;
     }
