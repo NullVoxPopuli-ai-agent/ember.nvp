@@ -1,3 +1,4 @@
+import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -53,6 +54,60 @@ async function bundle(
   // rolldown's `//#region <path>` comments reference the random temp dir.
   // Collapse them to the bare filename so snapshots stay deterministic.
   return code.replace(/(\/\/#region ).*\/([^/\n]+)$/gm, "$1$2");
+}
+
+/**
+ * Builds `files` with sourcemaps (entry `index.ts`),
+ * then follows each needle's first occurrence in the emitted code through the `.js.map`,
+ * the way a debugger does.
+ *
+ * One line per needle: the source the map names, its 1-based line and 0-based column,
+ * and the source text from that column on.
+ */
+async function traced(files: Record<string, string>, needles: string[]): Promise<string> {
+  const dir = await mkdtemp(path.join(tmpdir(), "ember-rolldown-trace-"));
+
+  for (const [relative, source] of Object.entries(files)) {
+    await writeFile(path.join(dir, relative), source, "utf8");
+  }
+
+  const build = await rolldown({
+    input: path.join(dir, "index.ts"),
+    plugins: [emberTransform()],
+    external: (id) => !(id.startsWith(".") || path.isAbsolute(id)),
+    onwarn() {},
+  });
+
+  const { output } = await build.generate({ format: "es", sourcemap: true });
+  const [chunk] = output;
+  const lines = chunk.code.split("\n");
+  const map = new TraceMap(chunk.map!.toString());
+
+  return needles
+    .map((needle) => {
+      const line = lines.findIndex((text) => text.includes(needle));
+      if (line === -1) throw new Error(`\`${needle}\` is not in the output:\n${chunk.code}`);
+
+      const {
+        source,
+        line: sourceLine,
+        column,
+      } = originalPositionFor(map, {
+        line: line + 1,
+        column: lines[line]!.indexOf(needle),
+      });
+
+      if (!source || sourceLine === null || column === null) return `${needle} -> (unmapped)`;
+
+      // A .gts without <template> loads as-is, with no map,
+      // so its source is the virtual .ts id.
+      const file = path.basename(source);
+      const content = files[file] ?? files[file.replace(/\.ts$/, ".gts")]!;
+      const text = content.split("\n")[sourceLine - 1]!.slice(column);
+
+      return `${needle} -> ${file}:${sourceLine}:${column}  ${text}`;
+    })
+    .join("\n");
 }
 
 describe("emberTransform (full plugin via rolldown)", () => {
@@ -312,5 +367,102 @@ describe("emberTransform (full plugin via rolldown)", () => {
     // (content-tag's map survives the specifier-rewrite pass)
     const sources = (chunk as { map?: { sources: string[] } }).map?.sources ?? [];
     expect(sources.some((source) => source.endsWith("foo.gts"))).toBe(true);
+  });
+
+  it("maps a rewritten .gts module to its exact source lines and columns", async () => {
+    // content-tag reprints the module.
+    // A doc comment's closing `*/` and the declaration after it share one line of its output.
+    //
+    // widget.gts imports another .gts, so the specifier rewrite runs on that output.
+    // Its map must keep every column,
+    // or the declaration resolves to the `*/` on the line above it.
+    const result = await traced(
+      {
+        "index.ts": `export { Widget } from './widget.ts';`,
+        "widget.gts": [
+          `import { helper } from './other.gts';`,
+          ``,
+          `/**`,
+          ` * A widget.`,
+          ` */`,
+          `export class Widget {`,
+          `  /**`,
+          `   * The name.`,
+          `   */`,
+          `  get name(): string {`,
+          `    return helper();`,
+          `  }`,
+          ``,
+          `  <template>Hello {{this.name}}</template>`,
+          `}`,
+        ].join("\n"),
+        "other.gts": [`export function helper(): string {`, `  return 'x';`, `}`].join("\n"),
+      },
+      ["Widget = class", "name()", "return helper"],
+    );
+
+    expect(result).toMatchInlineSnapshot(`
+      "Widget = class -> widget.gts:6:13  Widget {
+      name() -> widget.gts:10:6  name(): string {
+      return helper -> widget.gts:11:4  return helper();"
+    `);
+  });
+
+  it("keeps columns in a plain .ts module that imports a .gts", async () => {
+    const result = await traced(
+      {
+        "index.ts": [
+          `import { helper } from './other.gts';`,
+          ``,
+          `export function greet(name: string): string {`,
+          `  return helper() + name;`,
+          `}`,
+        ].join("\n"),
+        "other.gts": [`export function helper(): string {`, `  return 'x';`, `}`].join("\n"),
+      },
+      ["greet", "return helper"],
+    );
+
+    expect(result).toMatchInlineSnapshot(`
+      "greet -> index.ts:3:16  greet(name: string): string {
+      return helper -> index.ts:4:2  return helper() + name;"
+    `);
+  });
+
+  it("maps .gts modules that the specifier rewrite does not touch", async () => {
+    // other.gts has no <template>, and widget.gts imports no .gts.
+    // Neither goes through the rewrite, so these maps come from content-tag alone.
+    const result = await traced(
+      {
+        "index.ts": [
+          `export { helper } from './other.ts';`,
+          `export { Widget } from './widget.ts';`,
+        ].join("\n"),
+        "widget.gts": [
+          `import { helper } from './other.ts';`,
+          ``,
+          `/**`,
+          ` * A widget.`,
+          ` */`,
+          `export class Widget {`,
+          `  get name(): string {`,
+          `    return helper();`,
+          `  }`,
+          ``,
+          `  <template>Hello {{this.name}}</template>`,
+          `}`,
+        ].join("\n"),
+        "other.gts": [`export function helper(): string {`, `  return 'x';`, `}`].join("\n"),
+      },
+      ["helper() {", `return "x"`, "Widget = class", "name()", "return helper"],
+    );
+
+    expect(result).toMatchInlineSnapshot(`
+      "helper() { -> other.ts:1:16  helper(): string {
+      return "x" -> other.ts:2:2  return 'x';
+      Widget = class -> widget.gts:6:13  Widget {
+      name() -> widget.gts:7:6  name(): string {
+      return helper -> widget.gts:8:4  return helper();"
+    `);
   });
 });
