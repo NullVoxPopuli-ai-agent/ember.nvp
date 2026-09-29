@@ -66,3 +66,14 @@ test("cli -h alias works", async () => {
   const outStr = stripVTControlCharacters(res.stdout);
   expect(outStr).toMatchInlineSnapshot(BASIC_HELP_OUTPUT);
 });
+
+test("cli prints a message, not a stack trace, for an unknown flag", async () => {
+  let { execaPromise } = cli(["--bogus"]);
+
+  const res = await execaPromise.catch((error) => error);
+
+  expect(res.exitCode).toBe(1);
+  const outStr = stripVTControlCharacters(`${res.stdout}\n${res.stderr}`);
+  expect(outStr).toContain("Unknown option '--bogus'");
+  expect(outStr).not.toContain("TypeError");
+});

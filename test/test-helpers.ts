@@ -6,7 +6,7 @@ import { mkdtemp, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { generateProject, Project } from "ember.nvp";
 import { discoverLayers } from "#layers";
-import type { DiscoveredLayer, ProjectType } from "#types";
+import type { Answers, DiscoveredLayer, ProjectType } from "#types";
 import { expect } from "vitest";
 
 const minimalApp = "minimal-app";
@@ -78,6 +78,7 @@ export async function reapply(project: Project, layers: string[]) {
     name: project.name,
     type: project.type,
     packageManager: project.packageManager,
+    options: project.desires.options,
   });
 }
 
@@ -87,12 +88,17 @@ export async function generate({
   type = "app",
   packageManager = "pnpm",
   directory,
+  options,
 }: {
   directory?: string;
   layers?: string[];
   name?: string;
   type?: ProjectType;
   packageManager?: "pnpm" | "npm";
+  /**
+   * Layer options, keyed by layer name
+   */
+  options?: Answers["options"];
 }): Promise<Project> {
   const tempDir = directory ?? (await mktemp(name));
 
@@ -103,6 +109,7 @@ export async function generate({
     path: tempDir,
     layers: selectedLayers,
     packageManager,
+    options,
   });
 
   await generateProject(project);

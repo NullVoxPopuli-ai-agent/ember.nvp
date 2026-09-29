@@ -5,17 +5,32 @@ export type ProjectType = "app" | "library" | "extension" | "custom-element";
 export type LayerOptionType = "text" | "number" | "select" | "confirm" | "multiselect";
 
 export interface LayerSelectChoice {
-  value: any;
+  /**
+   * A string, because the same value is also typed as a CLI flag
+   */
+  value: string;
   label: string;
   hint?: string;
 }
 
 export interface LayerOptionSchema {
   type: LayerOptionType;
+  /**
+   * The question to ask, also shown in `--help`
+   */
   prompt: string;
   default?: any;
+  /**
+   * The choices for "select" and "multiselect"
+   */
   options?: LayerSelectChoice[];
-  validate?: (value: any) => boolean | string;
+  /**
+   * Receives the value after conversion to the option's type.
+   *
+   * Return a string to reject the value with that message.
+   * `false` rejects it with a generic message.
+   */
+  validate?: (value: any) => boolean | string | undefined;
 }
 
 export interface LayerOptionsSchema {

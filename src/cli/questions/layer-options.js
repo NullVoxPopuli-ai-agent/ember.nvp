@@ -16,131 +16,112 @@ export async function askLayerOptions(selectedLayers) {
   const result = {};
 
   for (const layer of selectedLayers) {
-    if (!layer.options || Object.keys(layer.options).length === 0) {
-      continue;
-    }
+    if (!layer.options) continue;
 
     const layerResult = (result[layer.name] ??= {});
 
     for (const [key, schema] of Object.entries(layer.options)) {
-      const layerCliOpts = cliOptions[layer.name];
-      if (layerCliOpts && layerCliOpts[key] !== undefined) {
-        layerResult[key] = layerCliOpts[key];
-        printArgInUse(`${layer.name}.${key}`, String(layerCliOpts[key]));
+      const fromCli = cliOptions[layer.name]?.[key];
+
+      if (fromCli !== undefined) {
+        layerResult[key] = fromCli;
+        printArgInUse(`${layer.name}.${key}`, String(fromCli));
         continue;
       }
 
-      let answer;
-      const layerNamePrefix = styleText("magentaBright", layer.name);
-      const promptMessage = `${layerNamePrefix}: ${schema.prompt ?? key}`;
+      const message = `${styleText("magentaBright", layer.name)}: ${schema.prompt}`;
 
-      switch (schema.type) {
-        case "number": {
-          const raw = await p.text({
-            message: promptMessage,
-            placeholder: schema.default !== undefined ? String(schema.default) : undefined,
-            defaultValue: schema.default !== undefined ? String(schema.default) : undefined,
-            validate: (input) => {
-              const res = validateOption(schema, input);
-              return res.ok ? undefined : res.error;
-            },
-          });
-
-          if (p.isCancel(raw)) {
-            p.cancel("Operation cancelled");
-            process.exit(0);
-          }
-
-          const valStr =
-            (!raw || raw.length === 0) && schema.default !== undefined
-              ? String(schema.default)
-              : raw;
-          // @clack/prompts p.text returns a string, so coerce to a number for schema type "number"
-          answer = Number(valStr);
-          break;
-        }
-        case "text": {
-          const raw = await p.text({
-            message: promptMessage,
-            placeholder: schema.default !== undefined ? String(schema.default) : undefined,
-            defaultValue: schema.default !== undefined ? String(schema.default) : undefined,
-            validate: (input) => {
-              const res = validateOption(schema, input);
-              return res.ok ? undefined : res.error;
-            },
-          });
-
-          if (p.isCancel(raw)) {
-            p.cancel("Operation cancelled");
-            process.exit(0);
-          }
-
-          answer =
-            (!raw || raw.length === 0) && schema.default !== undefined
-              ? String(schema.default)
-              : raw;
-          break;
-        }
-        case "confirm": {
-          answer = await p.confirm({
-            message: promptMessage,
-            initialValue: schema.default !== undefined ? Boolean(schema.default) : true,
-          });
-
-          if (p.isCancel(answer)) {
-            p.cancel("Operation cancelled");
-            process.exit(0);
-          }
-          break;
-        }
-        case "select": {
-          answer = await p.select({
-            message: promptMessage,
-            options: schema.options ?? [],
-            initialValue: schema.default,
-          });
-
-          if (p.isCancel(answer)) {
-            p.cancel("Operation cancelled");
-            process.exit(0);
-          }
-          break;
-        }
-        case "multiselect": {
-          // @clack/prompts multiselect does not support inline validate function parameter.
-          // Therefore, if schema.validate is defined, we loop until user selection passes validateOption.
-          while (true) {
-            const rawSelection = await p.multiselect({
-              message: promptMessage,
-              options: schema.options ?? [],
-              initialValues: schema.default ?? [],
-              required: false,
-            });
-
-            if (p.isCancel(rawSelection)) {
-              p.cancel("Operation cancelled");
-              process.exit(0);
-            }
-
-            const validation = validateOption(schema, rawSelection);
-            if (validation.ok) {
-              answer = validation.value;
-              break;
-            } else {
-              p.log.error(validation.error);
-            }
-          }
-          break;
-        }
-        default: {
-          console.warn(`Unknown option type '${schema.type}' for layer ${layer.name}.${key}`);
-          answer = schema.default;
-        }
-      }
-
-      layerResult[key] = answer;
+      layerResult[key] = await ask(message, schema);
     }
   }
 
   return result;
+}
+
+/**
+ * @param {string} message
+ * @param {import('#types').LayerOptionSchema} schema
+ * @returns {Promise<unknown>}
+ */
+async function ask(message, schema) {
+  switch (schema.type) {
+    case "text":
+    case "number": {
+      const fallback = schema.default === undefined ? undefined : String(schema.default);
+
+      const answer = await p.text({
+        message,
+        placeholder: fallback,
+        defaultValue: fallback,
+        /**
+         * clack swaps in the defaultValue after validation,
+         * so an empty answer is checked as the default.
+         */
+        validate: (input) => {
+          const result = validateOption(schema, input || fallback || "");
+
+          return result.ok ? undefined : result.error;
+        },
+      });
+
+      // converts "number" answers, which clack returns as strings
+      const result = validateOption(schema, exitIfCancelled(answer));
+
+      if (!result.ok) throw new Error(result.error);
+
+      return result.value;
+    }
+
+    case "confirm":
+      return exitIfCancelled(
+        await p.confirm({
+          message,
+          initialValue: schema.default ?? true,
+        }),
+      );
+
+    case "select":
+      return exitIfCancelled(
+        await p.select({
+          message,
+          options: schema.options ?? [],
+          initialValue: schema.default,
+        }),
+      );
+
+    case "multiselect": {
+      // clack's multiselect has no validate, so ask again until the selection passes
+      while (true) {
+        const answer = await p.multiselect({
+          message,
+          options: schema.options ?? [],
+          initialValues: schema.default ?? [],
+          required: false,
+        });
+
+        const result = validateOption(schema, exitIfCancelled(answer));
+
+        if (result.ok) return result.value;
+
+        p.log.error(result.error);
+      }
+    }
+
+    default:
+      throw new Error(`Unknown option type '${String(schema.type)}'`);
+  }
+}
+
+/**
+ * @template T
+ * @param {T | symbol} answer
+ * @returns {T}
+ */
+function exitIfCancelled(answer) {
+  if (p.isCancel(answer)) {
+    p.cancel("Operation cancelled");
+    return process.exit(0);
+  }
+
+  return answer;
 }

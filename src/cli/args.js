@@ -67,32 +67,48 @@ export const coreOptions = /** @type {const} */ ({
  */
 const isHelpRequested = process.argv.slice(2).some((arg) => arg === "--help" || arg === "-h");
 if (isHelpRequested) {
-  printHelp(coreOptions);
+  printHelp(coreOptions, discoveredLayers);
   process.exit(0);
 }
 
-/** @type {Record<string, import("node:util").ParseArgsOptionDescriptor>} */
-const options = { ...coreOptions };
+/**
+ * Parse the core flags, plus one `--<layer>.<option>` flag per layer option.
+ *
+ * Every layer adds its flags, not only the selected ones,
+ * because layers are selected after parsing.
+ *
+ * Throws on an unknown flag, or on a value given to a boolean flag.
+ *
+ * @param {string[]} args
+ * @param {import('#types').DiscoveredLayer[]} layers
+ */
+export function parseCliArgs(args, layers) {
+  /** @type {Record<string, import("node:util").ParseArgsOptionDescriptor>} */
+  const options = { ...coreOptions };
 
-for (const layer of discoveredLayers) {
-  if (!layer.options) continue;
-  for (const [optionKey, schema] of Object.entries(layer.options)) {
-    options[`${layer.name}.${optionKey}`] = {
-      type: schema.type === "confirm" ? "boolean" : "string",
-      ...(schema.type === "multiselect" ? { multiple: true } : {}),
-    };
+  for (const layer of layers) {
+    for (const [key, schema] of Object.entries(layer.options ?? {})) {
+      options[`${layer.name}.${key}`] = {
+        type: schema.type === "confirm" ? "boolean" : "string",
+        multiple: schema.type === "multiselect",
+      };
+    }
   }
+
+  // allowNegative makes `--no-<layer>.<option>` turn a "confirm" option off
+  return parseArgs({ args, options, allowNegative: true }).values;
 }
 
-/**
- * The CLI options are parsed by combining the static core flags (--name, --type, etc.) with
- * dynamic options discovered at startup from each layer in #layers (formatted as
- * --<layerName>.<optionKey>).  This lets us use Node's `parseArgs` in default strict mode.
- */
-const { values } = parseArgs({
-  args: process.argv.slice(2),
-  options,
-});
+/** @type {ReturnType<typeof parseCliArgs>} */
+let values;
+
+try {
+  values = parseCliArgs(process.argv.slice(2), discoveredLayers);
+} catch (error) {
+  // parseArgs errors name the flag, so a stack trace adds nothing for the user
+  p.cancel(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 
 const typedValues =
   /** @type {ReturnType<typeof parseArgs<{ options: typeof coreOptions }>>['values']} */ (values);
@@ -105,8 +121,10 @@ export const answers = {
 /**
  * Extract layer options from parsed CLI values.
  *
+ * Exits when a value does not pass the option's validation.
+ *
  * @param {import('#types').DiscoveredLayer[]} layers
- * @param {Record<string, any>} [parsedValues] Defaults to module-level `values` from parseArgs
+ * @param {Record<string, any>} [parsedValues] Defaults to the parsed `process.argv`
  * @returns {Record<string, Record<string, any>>}
  */
 export function parseLayerOptionsFromParsedArgs(layers = [], parsedValues = values) {
@@ -120,17 +138,40 @@ export function parseLayerOptionsFromParsedArgs(layers = [], parsedValues = valu
       const flagKey = `${layer.name}.${optionKey}`;
       const rawVal = parsedValues[flagKey];
 
-      if (rawVal !== undefined) {
-        const validation = validateOption(schema, rawVal);
-        if (!validation.ok) {
-          p.cancel(`Invalid CLI argument '--${flagKey}': ${validation.error}`);
-          process.exit(1);
-        }
+      if (rawVal === undefined) continue;
 
-        const layerObj = (result[layer.name] ??= {});
-        // validation.value contains the coerced value (e.g. string to number) produced by validateOption
-        layerObj[optionKey] = validation.value;
+      const validation = validateOption(
+        schema,
+        schema.type === "multiselect" ? splitCommas(rawVal) : rawVal,
+      );
+
+      if (!validation.ok) {
+        p.cancel(`Invalid CLI argument '--${flagKey}': ${validation.error}`);
+        process.exit(1);
       }
+
+      (result[layer.name] ??= {})[optionKey] = validation.value;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * `--x.y a,b` means the same as `--x.y a --x.y b`
+ *
+ * @param {string[]} values
+ * @returns {string[]}
+ */
+function splitCommas(values) {
+  /** @type {string[]} */
+  const result = [];
+
+  for (const value of values) {
+    for (const part of value.split(",")) {
+      const trimmed = part.trim();
+
+      if (trimmed) result.push(trimmed);
     }
   }
 

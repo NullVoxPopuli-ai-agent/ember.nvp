@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
+import { stripVTControlCharacters } from "node:util";
 import { Project } from "#utils/project.js";
-import { parseLayerOptionsFromParsedArgs } from "#args";
+import { coreOptions, parseCliArgs, parseLayerOptionsFromParsedArgs } from "#args";
+import { printHelp } from "../../src/cli/help.js";
 import type { DiscoveredLayer } from "#types";
 
 describe("Layer Options Feature", () => {
@@ -122,161 +124,124 @@ describe("Layer Options Feature", () => {
     });
   });
 
-  describe("Option Validation Schemas", () => {
-    it("validates number schema constraints", () => {
-      const numberSchema = fakeKitchenSinkLayer.options!.unitCount!;
-      expect(numberSchema.validate!(10)).toBe(true);
-      expect(numberSchema.validate!(0)).toBe("Must be greater than 0");
-    });
+  describe("CLI flags", () => {
+    const layers = [fakeKitchenSinkLayer];
 
-    it("validates text schema constraints", () => {
-      const textSchema = fakeKitchenSinkLayer.options!.customTitle!;
-      expect(textSchema.validate!("Valid Title")).toBe(true);
-      expect(textSchema.validate!("   ")).toBe("Title cannot be empty");
-    });
+    function parse(args: string[]) {
+      return parseLayerOptionsFromParsedArgs(layers, parseCliArgs(args, layers));
+    }
 
-    it("validates multiselect schema constraints", () => {
-      const multiSchema = fakeKitchenSinkLayer.options!.extras!;
-      expect(multiSchema.validate!(["soap-dispenser"])).toBe(true);
-      expect(multiSchema.validate!([])).toBe("Select at least one extra");
-    });
-  });
-
-  describe("parseLayerOptionsFromParsedArgs", () => {
     it("parses layer options for all option types", () => {
-      const parsedValues = {
-        layers: ["fake-kitchen-sink"],
-        "fake-kitchen-sink.unitCount": "15",
-        "fake-kitchen-sink.customTitle": "CLI Title",
-        "fake-kitchen-sink.flavor": "deluxe",
-        "fake-kitchen-sink.enableLogging": true,
-        "fake-kitchen-sink.extras": ["soap-dispenser", "garbage-disposal"],
-      };
-      const parsed = parseLayerOptionsFromParsedArgs([fakeKitchenSinkLayer], parsedValues);
-
-      expect(parsed).toEqual({
+      expect(
+        parse([
+          "--fake-kitchen-sink.unitCount=15",
+          "--fake-kitchen-sink.customTitle",
+          "CLI Title",
+          "--fake-kitchen-sink.flavor",
+          "deluxe",
+          "--no-fake-kitchen-sink.enableLogging",
+          "--fake-kitchen-sink.extras",
+          "soap-dispenser",
+          "--fake-kitchen-sink.extras",
+          "garbage-disposal",
+        ]),
+      ).toEqual({
         "fake-kitchen-sink": {
           unitCount: 15,
           customTitle: "CLI Title",
           flavor: "deluxe",
-          enableLogging: true,
+          enableLogging: false,
           extras: ["soap-dispenser", "garbage-disposal"],
         },
       });
     });
 
-    it("parses multiselect options supplied as comma-separated string", () => {
-      const parsedValues = {
-        layers: ["fake-kitchen-sink"],
-        "fake-kitchen-sink.extras": "soap-dispenser, garbage-disposal",
-      };
-      const parsed = parseLayerOptionsFromParsedArgs([fakeKitchenSinkLayer], parsedValues);
+    it("turns a confirm option on without a value", () => {
+      expect(parse(["--fake-kitchen-sink.enableLogging"])).toEqual({
+        "fake-kitchen-sink": { enableLogging: true },
+      });
+    });
 
-      expect(parsed).toEqual({
+    it("parses multiselect options supplied as comma-separated string", () => {
+      expect(parse(["--fake-kitchen-sink.extras", "soap-dispenser, garbage-disposal"])).toEqual({
         "fake-kitchen-sink": {
           extras: ["soap-dispenser", "garbage-disposal"],
         },
       });
     });
 
-    it("ignores flags for unknown layers or options", () => {
-      const parsedValues = {
-        "unknown-flag": "value",
-        "fake-kitchen-sink.unknownOpt": "100",
-      };
-      const parsed = parseLayerOptionsFromParsedArgs([fakeKitchenSinkLayer], parsedValues);
-
-      expect(parsed).toEqual({});
+    it("leaves out options that were not passed", () => {
+      expect(parse(["--name", "my-app"])).toEqual({});
     });
 
-    it("exits process when a CLI flag fails validation", () => {
+    it("ignores flags for layers that were not selected", () => {
+      const values = parseCliArgs(["--fake-kitchen-sink.flavor", "deluxe"], layers);
+
+      expect(parseLayerOptionsFromParsedArgs([], values)).toEqual({});
+    });
+
+    it("throws when a confirm option is given a value", () => {
+      expect(() => parseCliArgs(["--fake-kitchen-sink.enableLogging=false"], layers)).toThrow(
+        "Option '--fake-kitchen-sink.enableLogging' does not take an argument",
+      );
+    });
+
+    it("throws on an unknown option", () => {
+      expect(() => parseCliArgs(["--fake-kitchen-sink.unitcount=3"], layers)).toThrow(
+        "Unknown option '--fake-kitchen-sink.unitcount'",
+      );
+    });
+
+    it.each([
+      ["a value that fails validate", "--fake-kitchen-sink.unitCount=-5"],
+      ["a number in hex", "--fake-kitchen-sink.unitCount=0x10"],
+      ["an unlisted select value", "--fake-kitchen-sink.flavor=ultra"],
+      ["an unlisted multiselect value", "--fake-kitchen-sink.extras=invalid-extra"],
+    ])("exits on %s", (_, arg) => {
       const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
         throw new Error("process.exit called");
       }) as any);
 
-      const parsedValues = {
-        "fake-kitchen-sink.unitCount": "-5", // schema requires > 0
-      };
-
-      expect(() => {
-        parseLayerOptionsFromParsedArgs([fakeKitchenSinkLayer], parsedValues);
-      }).toThrow("process.exit called");
-
-      expect(exitSpy).toHaveBeenCalledWith(1);
-      exitSpy.mockRestore();
-    });
-
-    it("exits process when an invalid select value is passed via CLI flag", () => {
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-        throw new Error("process.exit called");
-      }) as any);
-
-      const parsedValues = {
-        "fake-kitchen-sink.flavor": "ultra", // allowed options are 'standard' or 'deluxe'
-      };
-
-      expect(() => {
-        parseLayerOptionsFromParsedArgs([fakeKitchenSinkLayer], parsedValues);
-      }).toThrow("process.exit called");
-
-      expect(exitSpy).toHaveBeenCalledWith(1);
-      exitSpy.mockRestore();
-    });
-
-    it("exits process when an invalid multiselect item is passed via CLI flag", () => {
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-        throw new Error("process.exit called");
-      }) as any);
-
-      const parsedValues = {
-        "fake-kitchen-sink.extras": ["invalid-extra"],
-      };
-
-      expect(() => {
-        parseLayerOptionsFromParsedArgs([fakeKitchenSinkLayer], parsedValues);
-      }).toThrow("process.exit called");
-
-      expect(exitSpy).toHaveBeenCalledWith(1);
-      exitSpy.mockRestore();
+      try {
+        expect(() => parse([arg])).toThrow("process.exit called");
+        expect(exitSpy).toHaveBeenCalledWith(1);
+      } finally {
+        exitSpy.mockRestore();
+      }
     });
   });
 
-  describe("Layer execution with options", () => {
-    it("passes options to layer.run", async () => {
-      let receivedOptions: Record<string, any> | undefined;
-
-      const layerWithOptions: DiscoveredLayer = {
-        ...fakeKitchenSinkLayer,
-        async run(_project, options) {
-          receivedOptions = options;
-        },
-      };
-
-      const project = new Project("/tmp/test", {
-        name: "my-app",
-        type: "app",
-        path: "/tmp/test",
-        packageManager: "pnpm",
-        layers: [layerWithOptions],
-        options: {
-          "fake-kitchen-sink": {
-            unitCount: 42,
-            flavor: "deluxe",
-            extras: ["soap-dispenser"],
-          },
-        },
-      });
-
-      const opts = project.getLayerOptions("fake-kitchen-sink");
-      await layerWithOptions.run(project, opts);
-
-      expect(receivedOptions).toEqual({
-        unitCount: 42,
-        customTitle: "My Kitchen Sink",
-        flavor: "deluxe",
-        enableLogging: true,
-        extras: ["soap-dispenser"],
-      });
+  it("lists layer options in --help", () => {
+    const lines: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((line: string) => {
+      lines.push(stripVTControlCharacters(line));
     });
+
+    try {
+      printHelp(coreOptions, [fakeKitchenSinkLayer]);
+    } finally {
+      logSpy.mockRestore();
+    }
+
+    const output = lines.join("\n");
+
+    expect(output.slice(output.indexOf("Layer Options:"))).toMatchInlineSnapshot(`
+      "Layer Options:
+            --fake-kitchen-sink.unitCount <number>
+            How many units do you want? [default: 7]
+
+            --fake-kitchen-sink.customTitle <string>
+            Enter a custom title [default: "My Kitchen Sink"]
+
+            --fake-kitchen-sink.flavor <string>
+            Which kitchen sink flavor do you prefer? [choices: "standard", "deluxe"] [default: "standard"]
+
+            --[no-]fake-kitchen-sink.enableLogging <boolean>
+            Enable detailed sink logging? [default: true]
+
+            --fake-kitchen-sink.extras <string>
+            Select optional kitchen sink extras [choices: "soap-dispenser", "garbage-disposal"] [default: ["soap-dispenser"]]
+      "
+    `);
   });
 });

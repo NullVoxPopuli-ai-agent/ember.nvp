@@ -14,15 +14,14 @@ describe("validateOption", () => {
     it("validates valid numbers", () => {
       expect(validateOption(schema, 5)).toEqual({ ok: true, value: 5 });
       expect(validateOption(schema, "42")).toEqual({ ok: true, value: 42 });
+      expect(validateOption(schema, " 2.5 ")).toEqual({ ok: true, value: 2.5 });
     });
 
-    it("falls back to default when input is empty string or undefined", () => {
-      expect(validateOption(schema, "")).toEqual({ ok: true, value: 10 });
-      expect(validateOption(schema, undefined)).toEqual({ ok: true, value: 10 });
-    });
-
-    it("fails on non-numeric strings", () => {
-      expect(validateOption(schema, "abc")).toEqual({ ok: false, error: "Must be a valid number" });
+    it.each(["", "abc", "0x10", "1e3"])("fails on '%s'", (input) => {
+      expect(validateOption(schema, input)).toEqual({
+        ok: false,
+        error: `'${input}' is not a number`,
+      });
     });
 
     it("fails custom validate function", () => {
@@ -42,12 +41,14 @@ describe("validateOption", () => {
       expect(validateOption(schema, "hello")).toEqual({ ok: true, value: "hello" });
     });
 
-    it("uses default when input is empty", () => {
-      expect(validateOption(schema, "")).toEqual({ ok: true, value: "default-title" });
-    });
-
     it("fails custom validate function", () => {
       expect(validateOption(schema, "hi")).toEqual({ ok: false, error: "Minimum 3 chars" });
+    });
+
+    it("fails with a generic message when validate returns false", () => {
+      const strict: LayerOptionSchema = { ...schema, validate: () => false };
+
+      expect(validateOption(strict, "hello")).toEqual({ ok: false, error: "Invalid value" });
     });
   });
 
@@ -58,21 +59,15 @@ describe("validateOption", () => {
       default: true,
     };
 
-    it("validates booleans and boolean strings", () => {
+    it("validates booleans", () => {
       expect(validateOption(schema, true)).toEqual({ ok: true, value: true });
-      expect(validateOption(schema, "false")).toEqual({ ok: true, value: false });
-      expect(validateOption(schema, "yes")).toEqual({ ok: true, value: true });
-      expect(validateOption(schema, "no")).toEqual({ ok: true, value: false });
+      expect(validateOption(schema, false)).toEqual({ ok: true, value: false });
     });
 
-    it("uses default when input is empty", () => {
-      expect(validateOption(schema, "")).toEqual({ ok: true, value: true });
-    });
-
-    it("fails invalid boolean string", () => {
-      expect(validateOption(schema, "maybe")).toEqual({
+    it("fails on strings", () => {
+      expect(validateOption(schema, "yes")).toEqual({
         ok: false,
-        error: "Invalid boolean value 'maybe'. Must be true/false or yes/no.",
+        error: "'yes' is not true or false",
       });
     });
   });
@@ -92,15 +87,38 @@ describe("validateOption", () => {
       expect(validateOption(schema, "deluxe")).toEqual({ ok: true, value: "deluxe" });
     });
 
-    it("uses default when input is empty", () => {
-      expect(validateOption(schema, "")).toEqual({ ok: true, value: "standard" });
-    });
-
     it("fails unlisted choice", () => {
       expect(validateOption(schema, "ultra")).toEqual({
         ok: false,
         error: "Invalid option 'ultra'. Must be one of: standard, deluxe",
       });
+    });
+  });
+
+  describe("multiselect validation", () => {
+    const schema: LayerOptionSchema = {
+      type: "multiselect",
+      prompt: "Select options",
+      options: [
+        { label: "A", value: "a" },
+        { label: "B", value: "b" },
+      ],
+      validate: (val: string[]) => val.length > 0 || "Select at least one",
+    };
+
+    it("validates listed choices", () => {
+      expect(validateOption(schema, ["a", "b"])).toEqual({ ok: true, value: ["a", "b"] });
+    });
+
+    it("fails unlisted choice", () => {
+      expect(validateOption(schema, ["a", "c"])).toEqual({
+        ok: false,
+        error: "Invalid option 'c'. Must be one of: a, b",
+      });
+    });
+
+    it("fails custom validate function", () => {
+      expect(validateOption(schema, [])).toEqual({ ok: false, error: "Select at least one" });
     });
   });
 });

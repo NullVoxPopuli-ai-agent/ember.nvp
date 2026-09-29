@@ -1,189 +1,105 @@
 /**
  * @typedef {import('#types').LayerOptionSchema} LayerOptionSchema
  *
- * @typedef {Object} ValidationSuccess
- * @property {true} ok
- * @property {any} value
- */
-
-/**
- * @typedef {Object} ValidationFailure
- * @property {false} ok
- * @property {string} error
- */
-
-/**
+ * @typedef {{ ok: true, value: any }} ValidationSuccess
+ * @typedef {{ ok: false, error: string }} ValidationFailure
  * @typedef {ValidationSuccess | ValidationFailure} ValidationResult
  */
 
 /**
- * Type validators map for plug-and-play extensibility.
- * @type {Record<string, (schema: LayerOptionSchema, rawValue: any) => ValidationResult>}
- */
-const typeValidators = {
-  number(schema, rawValue) {
-    let input = rawValue;
-    if ((input === undefined || input === "" || input === null) && schema.default !== undefined) {
-      input = schema.default;
-    }
-    const num = Number(input);
-    if (isNaN(num)) {
-      return { ok: false, error: "Must be a valid number" };
-    }
-    if (schema.validate) {
-      const res = schema.validate(num);
-      if (typeof res === "string") return { ok: false, error: res };
-      if (res === false) return { ok: false, error: "Invalid value" };
-    }
-    return { ok: true, value: num };
-  },
-
-  text(schema, rawValue) {
-    let input = rawValue;
-    if ((input === undefined || input === "" || input === null) && schema.default !== undefined) {
-      input = String(schema.default);
-    } else {
-      input = input ?? "";
-    }
-    const str = String(input);
-    if (schema.validate) {
-      const res = schema.validate(str);
-      if (typeof res === "string") return { ok: false, error: res };
-      if (res === false) return { ok: false, error: "Invalid value" };
-    }
-    return { ok: true, value: str };
-  },
-
-  confirm(schema, rawValue) {
-    let input = rawValue;
-    if ((input === undefined || input === "" || input === null) && schema.default !== undefined) {
-      input = schema.default;
-    }
-
-    let boolVal;
-    if (typeof input === "boolean") {
-      boolVal = input;
-    } else if (typeof input === "string") {
-      const lower = input.trim().toLowerCase();
-      if (lower === "true" || lower === "yes" || lower === "1") {
-        boolVal = true;
-      } else if (lower === "false" || lower === "no" || lower === "0") {
-        boolVal = false;
-      } else {
-        return {
-          ok: false,
-          error: `Invalid boolean value '${input}'. Must be true/false or yes/no.`,
-        };
-      }
-    } else {
-      return {
-        ok: false,
-        error: `Invalid boolean value '${String(input)}'. Must be true/false or yes/no.`,
-      };
-    }
-
-    if (schema.validate) {
-      const res = schema.validate(boolVal);
-      if (typeof res === "string") return { ok: false, error: res };
-      if (res === false) return { ok: false, error: "Invalid value" };
-    }
-    return { ok: true, value: boolVal };
-  },
-
-  select(schema, rawValue) {
-    let input = rawValue;
-    if ((input === undefined || input === "" || input === null) && schema.default !== undefined) {
-      input = schema.default;
-    }
-
-    const optionsList = schema.options ?? [];
-    const validValues = optionsList.map((/** @type {any} */ opt) =>
-      typeof opt === "object" && opt !== null ? opt.value : opt,
-    );
-
-    if (!validValues.includes(input)) {
-      const allowedStr = validValues.map((/** @type {any} */ v) => String(v)).join(", ");
-      return {
-        ok: false,
-        error: `Invalid option '${String(input)}'. Must be one of: ${allowedStr}`,
-      };
-    }
-
-    if (schema.validate) {
-      const res = schema.validate(input);
-      if (typeof res === "string") return { ok: false, error: res };
-      if (res === false) return { ok: false, error: "Invalid value" };
-    }
-    return { ok: true, value: input };
-  },
-
-  multiselect(schema, rawValue) {
-    let input = rawValue;
-    if ((input === undefined || input === null) && schema.default !== undefined) {
-      input = schema.default;
-    } else if (input === undefined || input === null) {
-      input = [];
-    }
-
-    /** @type {any[]} */
-    let items = [];
-    if (Array.isArray(input)) {
-      items = input.flatMap((item) =>
-        typeof item === "string"
-          ? item
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [item],
-      );
-    } else if (typeof input === "string") {
-      items = input
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    } else {
-      items = [input];
-    }
-
-    const optionsList = schema.options ?? [];
-    const validValues = optionsList.map((/** @type {any} */ opt) =>
-      typeof opt === "object" && opt !== null ? opt.value : opt,
-    );
-
-    for (const item of items) {
-      if (!validValues.includes(item)) {
-        const allowedStr = validValues.map((/** @type {any} */ v) => String(v)).join(", ");
-        return {
-          ok: false,
-          error: `Invalid multiselect option '${String(item)}'. Must be one of: ${allowedStr}`,
-        };
-      }
-    }
-
-    if (schema.validate) {
-      const res = schema.validate(items);
-      if (typeof res === "string") return { ok: false, error: res };
-      if (res === false) return { ok: false, error: "Invalid value" };
-    }
-
-    return { ok: true, value: items };
-  },
-};
-
-/**
- * Validate a raw value against an option schema.
+ * Convert a value from a CLI flag or a prompt to the option's type,
+ * then run the option's own `validate`.
+ *
+ * Defaults are not applied here.
+ * See `Project#getLayerOptions`.
  *
  * @param {LayerOptionSchema} schema
- * @param {any} rawValue
+ * @param {unknown} rawValue
  * @returns {ValidationResult}
  */
 export function validateOption(schema, rawValue) {
-  if (!schema || !schema.type) {
-    return { ok: false, error: "Missing or invalid option schema" };
+  const converted = convert(schema, rawValue);
+
+  if (!converted.ok || !schema.validate) return converted;
+
+  const result = schema.validate(converted.value);
+
+  if (typeof result === "string") return { ok: false, error: result };
+  if (result === false) return { ok: false, error: "Invalid value" };
+
+  return converted;
+}
+
+/**
+ * @param {LayerOptionSchema} schema
+ * @param {unknown} rawValue
+ * @returns {ValidationResult}
+ */
+function convert(schema, rawValue) {
+  switch (schema.type) {
+    case "text":
+      return { ok: true, value: String(rawValue) };
+
+    case "number": {
+      const text = String(rawValue).trim();
+
+      /**
+       * Number() also accepts "", "0x10", and "1e3",
+       * which nobody means when they type a count.
+       */
+      if (!/^-?\d+(\.\d+)?$/.test(text)) {
+        return { ok: false, error: `'${text}' is not a number` };
+      }
+
+      return { ok: true, value: Number(text) };
+    }
+
+    case "confirm":
+      return typeof rawValue === "boolean"
+        ? { ok: true, value: rawValue }
+        : { ok: false, error: `'${String(rawValue)}' is not true or false` };
+
+    case "select": {
+      const allowed = choicesOf(schema);
+
+      return typeof rawValue === "string" && allowed.includes(rawValue)
+        ? { ok: true, value: rawValue }
+        : { ok: false, error: notAChoice(rawValue, allowed) };
+    }
+
+    case "multiselect": {
+      const allowed = choicesOf(schema);
+
+      if (!Array.isArray(rawValue)) {
+        return { ok: false, error: `'${String(rawValue)}' is not a list` };
+      }
+
+      for (const item of rawValue) {
+        if (!allowed.includes(item)) {
+          return { ok: false, error: notAChoice(item, allowed) };
+        }
+      }
+
+      return { ok: true, value: rawValue };
+    }
+
+    default:
+      return { ok: false, error: `Unknown option type '${String(schema.type)}'` };
   }
-  const validator = typeValidators[schema.type];
-  if (!validator) {
-    return { ok: false, error: `Unknown option type '${schema.type}'` };
-  }
-  return validator(schema, rawValue);
+}
+
+/**
+ * @param {LayerOptionSchema} schema
+ * @returns {string[]}
+ */
+function choicesOf(schema) {
+  return (schema.options ?? []).map((choice) => choice.value);
+}
+
+/**
+ * @param {unknown} value
+ * @param {string[]} allowed
+ */
+function notAChoice(value, allowed) {
+  return `Invalid option '${String(value)}'. Must be one of: ${allowed.join(", ")}`;
 }
