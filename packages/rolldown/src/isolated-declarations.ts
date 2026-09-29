@@ -92,56 +92,66 @@ export function emberIsolatedDeclarations(): Plugin {
       emitsDeclarations = config.dts !== false;
     },
 
-    async buildStart() {
-      if (tsconfigOption === false) {
-        if (!emitsDeclarations) return;
+    buildStart: {
+      /**
+       * Before rolldown-plugin-dts, whose buildStart loads the `typescript` package
+       * when isolatedDeclarations is off.
+       *
+       * In a TypeScript 7 library that package is TypeScript 7, which has no JavaScript API,
+       * so it crashes before this message can show.
+       */
+      order: "pre",
+      async handler() {
+        if (tsconfigOption === false) {
+          if (!emitsDeclarations) return;
 
-        // Without a tsconfig there is no `isolatedDeclarations`,
-        // so tsdown falls back to the tsc-based declaration pipeline.
-        //
-        // That pipeline reads source files from disk,
-        // and dies with "Source file not found" on every `.gts` / `.gjs`,
-        // since those only exist compiled in the module graph.
-        //
-        // Say so here instead of leaving that to be decoded.
-        this.error(
-          `\`tsconfig: false\` cannot be combined with declaration emit.\n\n` +
-            `Declarations are emitted by the isolated-declarations pipeline, which needs a ` +
-            `tsconfig setting "compilerOptions.isolatedDeclarations": true -- it is the only ` +
-            `pipeline that can see compiled .gts/.gjs modules.\n\n` +
-            `Either point tsdown's \`tsconfig\` option at such a config, or set \`dts: false\` ` +
-            `if this library ships no types.`,
-        );
-      }
+          // Without a tsconfig there is no `isolatedDeclarations`,
+          // so tsdown falls back to the tsc-based declaration pipeline.
+          //
+          // That pipeline reads source files from disk,
+          // and dies with "Source file not found" on every `.gts` / `.gjs`,
+          // since those only exist compiled in the module graph.
+          //
+          // Say so here instead of leaving that to be decoded.
+          this.error(
+            `\`tsconfig: false\` cannot be combined with declaration emit.\n\n` +
+              `Declarations are emitted by the isolated-declarations pipeline, which needs a ` +
+              `tsconfig setting "compilerOptions.isolatedDeclarations": true -- it is the only ` +
+              `pipeline that can see compiled .gts/.gjs modules.\n\n` +
+              `Either point tsdown's \`tsconfig\` option at such a config, or set \`dts: false\` ` +
+              `if this library ships no types.`,
+          );
+        }
 
-      const tsconfigPath = resolveTsconfigPath(tsconfigOption);
+        const tsconfigPath = resolveTsconfigPath(tsconfigOption);
 
-      if (!tsconfigPath || !existsSync(tsconfigPath)) return;
+        if (!tsconfigPath || !existsSync(tsconfigPath)) return;
 
-      let tsconfig: TsConfigJsonResolved;
+        let tsconfig: TsConfigJsonResolved;
 
-      try {
-        // Resolves `extends` chains, so the flag may come from a base config.
-        tsconfig = parseTsconfig(tsconfigPath);
-      } catch {
-        // Unreadable / unparsable tsconfig.
-        // tsc itself will report this with a better message than we can.
-        return;
-      }
+        try {
+          // Resolves `extends` chains, so the flag may come from a base config.
+          tsconfig = parseTsconfig(tsconfigPath);
+        } catch {
+          // Unreadable / unparsable tsconfig.
+          // tsc itself will report this with a better message than we can.
+          return;
+        }
 
-      if (tsconfig.compilerOptions?.isolatedDeclarations !== true) {
-        this.error(
-          `${tsconfigPath} must set "compilerOptions.isolatedDeclarations": true.\n\n` +
-            `Declarations for .gts/.gjs (template tag) modules can only be emitted by the ` +
-            `isolated-declarations pipeline, which reads compiled modules from the bundler's ` +
-            `module graph -- the tsc-based pipeline reads from disk and cannot see them.\n\n` +
-            `Isolated declarations require exported values to have explicit type annotations, ` +
-            `e.g. \`export const X: TOC<Sig> = <template>...\`.\n\n` +
-            `If this tsconfig also covers dev-only code (a demo app, in-package tests) that ` +
-            `should not be constrained this way, point tsdown's \`tsconfig\` option at a ` +
-            `publish-only tsconfig that sets the flag and covers just the published sources.`,
-        );
-      }
+        if (tsconfig.compilerOptions?.isolatedDeclarations !== true) {
+          this.error(
+            `${tsconfigPath} must set "compilerOptions.isolatedDeclarations": true.\n\n` +
+              `Declarations for .gts/.gjs (template tag) modules can only be emitted by the ` +
+              `isolated-declarations pipeline, which reads compiled modules from the bundler's ` +
+              `module graph -- the tsc-based pipeline reads from disk and cannot see them.\n\n` +
+              `Isolated declarations require exported values to have explicit type annotations, ` +
+              `e.g. \`export const X: TOC<Sig> = <template>...\`.\n\n` +
+              `If this tsconfig also covers dev-only code (a demo app, in-package tests) that ` +
+              `should not be constrained this way, point tsdown's \`tsconfig\` option at a ` +
+              `publish-only tsconfig that sets the flag and covers just the published sources.`,
+          );
+        }
+      },
     },
   };
 }
