@@ -204,6 +204,17 @@ describe("base: minimal-library", () => {
         //# sourceMappingURL=index.d.ts.map"
       `);
 
+      // A consumer's "go to definition" opens these, from the published src/
+      let declarationMap = JSON.parse((await project.read("dist/index.d.ts.map"))!);
+
+      expect(declarationMap.sources).toMatchInlineSnapshot(`
+        [
+          "../src/components/badge.gts",
+          "../src/components/greeting.gts",
+          "../src/utils/math.ts",
+        ]
+      `);
+
       expect(await listFiles(join(project.directory, "dist"))).toMatchInlineSnapshot(`
         [
           "index.d.ts",

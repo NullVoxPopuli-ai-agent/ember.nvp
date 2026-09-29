@@ -1,3 +1,4 @@
+import remapping, { type EncodedSourceMap } from "@jridgewell/remapping";
 import { Preprocessor } from "content-tag";
 import { existsSync, realpathSync } from "node:fs";
 import { readFile, writeFile, readdir } from "node:fs/promises";
@@ -63,12 +64,76 @@ function lineIdentityMap(id: string, source: string) {
 }
 
 /**
+ * The `.gts` / `.gjs` file behind a virtual `.ts` / `.js` id,
+ * and content-tag's map back to it (absent when there was no `<template>` to compile).
+ */
+interface Backing {
+  fileName: string;
+  map?: string;
+}
+
+/**
+ * Points a declaration map at the `.gts` / `.gjs` files behind its virtual sources.
+ *
+ * rolldown-plugin-dts generates declarations from the loaded module (content-tag's output).
+ * So its maps name:
+ * - the virtual id, a file that does not exist
+ * - content-tag's line numbers, which do not match the source
+ *
+ * Tracing through content-tag's map gives the file and line
+ * that a consumer's "go to definition" can open.
+ *
+ * Returns `undefined` when no source is virtual.
+ */
+function remapDeclarationMap(
+  json: string,
+  mapDir: string,
+  backings: Map<string, Backing>,
+): string | undefined {
+  const map = JSON.parse(json) as EncodedSourceMap;
+
+  if (!map.sources.some((source) => source && backings.has(path.resolve(mapDir, source)))) {
+    return undefined;
+  }
+
+  const remapped = remapping(
+    map,
+    (source, context) => {
+      // Only the declaration map's own sources can be virtual.
+      if (context.depth > 1) return null;
+
+      const backing = backings.get(path.resolve(mapDir, source));
+      if (!backing) return null;
+
+      context.source = backing.fileName;
+      return backing.map ?? null;
+    },
+    // Like the rest of the declaration map, point at the published sources.
+    // Do not embed them.
+    { excludeContent: true },
+  );
+
+  // Backing files come back absolute.
+  // The other sources are relative to the map's directory.
+  remapped.sources = remapped.sources.map((source) =>
+    source && path.isAbsolute(source)
+      ? path.relative(mapDir, source).split(path.sep).join("/")
+      : source,
+  );
+
+  return remapped.toString();
+}
+
+/**
  * Preprocesses `<template>` via content-tag, and maps
  *   `.gts` → `.ts`
  *   `.gjs` → `.js`
  * so rolldown can identify them as ts / js.
  */
 export function emberTransform(): Plugin {
+  // virtual id -> what it was loaded from
+  const backings = new Map<string, Backing>();
+
   return {
     name: "ember:transform",
 
@@ -190,9 +255,11 @@ export function emberTransform(): Plugin {
             const { code, map } = processor.process(source, {
               filename: fileName,
             });
+            backings.set(id, { fileName, map });
             return { code, map };
           }
 
+          backings.set(id, { fileName });
           return source;
         }
 
@@ -229,6 +296,21 @@ export function emberTransform(): Plugin {
         // (and to the column, for everything before the first rewritten specifier on a line).
         return { code: output, map: lineIdentityMap(id, input) };
       },
+    },
+
+    generateBundle(options, bundle) {
+      const outDir = options.dir ?? (options.file && path.dirname(options.file));
+      if (!outDir || backings.size === 0) return;
+
+      for (const output of Object.values(bundle)) {
+        if (output.type !== "asset" || !output.fileName.endsWith(".d.ts.map")) continue;
+        if (typeof output.source !== "string") continue;
+
+        const mapDir = path.dirname(path.resolve(outDir, output.fileName));
+        const remapped = remapDeclarationMap(output.source, mapDir, backings);
+
+        if (remapped) output.source = remapped;
+      }
     },
 
     writeBundle: {

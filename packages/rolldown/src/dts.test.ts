@@ -1,3 +1,5 @@
+import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
+import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -7,6 +9,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ember } from "../index.ts";
 
 interface Dist {
+  /**
+   * The emitted directory.
+   */
+  dir: string;
   /**
    * Sorted dist-relative paths of every emitted file.
    */
@@ -71,7 +77,7 @@ async function buildFixture(files: Record<string, string>, entry: string[]): Pro
   });
 
   const distDir = path.join(dir, "dist");
-  const dist: Dist = { files: [], contents: {} };
+  const dist: Dist = { dir: distDir, files: [], contents: {} };
 
   for (const entry of await readdir(distDir, { withFileTypes: true, recursive: true })) {
     if (!entry.isFile()) continue;
@@ -97,6 +103,41 @@ function printed(dist: Dist): string {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([file, content]) => `//=== ${file}\n${content}`)
     .join("\n");
+}
+
+/**
+ * Follows each declaration in a `.d.ts` through its declaration map,
+ * the way an editor does on "go to definition".
+ *
+ * One line per declaration: the source the map names, and that source's line.
+ */
+async function traced(dist: Dist, file: string): Promise<string> {
+  const map = new TraceMap(await readFile(path.join(dist.dir, `${file}.map`), "utf8"));
+  const result: string[] = [];
+
+  for (const [index, line] of (dist.contents[file] ?? "").split("\n").entries()) {
+    const name = line.match(/\b(?:interface|class|const|function)\s+(\w+)/)?.[1];
+    if (!name) continue;
+
+    const { source, line: sourceLine } = originalPositionFor(map, {
+      line: index + 1,
+      column: line.indexOf(name),
+    });
+
+    if (!source || sourceLine === null) {
+      result.push(`${name} -> (unmapped)`);
+      continue;
+    }
+
+    const sourcePath = path.resolve(dist.dir, source);
+    const text = existsSync(sourcePath)
+      ? (await readFile(sourcePath, "utf8")).split("\n")[sourceLine - 1]?.trim()
+      : "(no such file)";
+
+    result.push(`${name} -> ${source}:${sourceLine}  ${text}`);
+  }
+
+  return result.join("\n");
 }
 
 describe("declarations (full ember() via tsdown)", () => {
@@ -297,6 +338,69 @@ describe("declarations (full ember() via tsdown)", () => {
       //#endregion
       export { OptionList };
       //# sourceMappingURL=index.d.ts.map"
+    `);
+  });
+
+  it("maps declarations back to their .gts source lines", async () => {
+    // Declaration maps let a consumer's "go to definition" open the library's source.
+    //
+    // A .gts module reaches the declaration pipeline as a virtual .ts id,
+    // holding content-tag's output (which moves lines around).
+    // The maps must still name the .gts file, at its own line numbers,
+    // including for a .gts with no <template> to compile.
+    const dist = await buildFixture(
+      {
+        "src/index.ts": [
+          `export { default as Popup, type AfterTemplate, type PopupBlock } from './popup.gts';`,
+          `export { double } from './helpers.gts';`,
+          `export { default as Plain, type PlainArgs } from './plain.ts';`,
+        ].join("\n"),
+        "src/popup.gts": [
+          `import Component from '@glimmer/component';`,
+          ``,
+          `export interface PopupBlock {`,
+          `  open: () => void;`,
+          `}`,
+          ``,
+          `export default class Popup extends Component<{ Blocks: { default: [PopupBlock] } }> {`,
+          `  <template>`,
+          `    <div class="popup">`,
+          `      {{yield (hash open=this.open)}}`,
+          `    </div>`,
+          `  </template>`,
+          ``,
+          `  open = (): void => {};`,
+          `}`,
+          ``,
+          `export interface AfterTemplate {`,
+          `  after: boolean;`,
+          `}`,
+        ].join("\n"),
+        "src/helpers.gts": [
+          `export function double(value: number): number {`,
+          `  return value * 2;`,
+          `}`,
+        ].join("\n"),
+        "src/plain.ts": [
+          `export interface PlainArgs {`,
+          `  name: string;`,
+          `}`,
+          ``,
+          `export default class Plain {`,
+          `  args?: PlainArgs;`,
+          `}`,
+        ].join("\n"),
+      },
+      ["./src/index.ts"],
+    );
+
+    expect(await traced(dist, "index.d.ts")).toMatchInlineSnapshot(`
+      "PopupBlock -> ../src/popup.gts:3  export interface PopupBlock {
+      Popup -> ../src/popup.gts:7  export default class Popup extends Component<{ Blocks: { default: [PopupBlock] } }> {
+      AfterTemplate -> ../src/popup.gts:17  export interface AfterTemplate {
+      double -> ../src/helpers.gts:1  export function double(value: number): number {
+      PlainArgs -> ../src/plain.ts:1  export interface PlainArgs {
+      Plain -> ../src/plain.ts:5  export default class Plain {"
     `);
   });
 
