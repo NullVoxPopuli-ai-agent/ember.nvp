@@ -42,6 +42,20 @@ async function fixDtsExtensionsInDir(dir: string): Promise<void> {
 }
 
 /**
+ * A sourcemap from `code` back to `source`, with a segment for every column.
+ *
+ * rolldown traces each output position back through the map of every hook.
+ * A position between two segments resolves to the segment before it,
+ * so fewer segments move positions to an earlier column.
+ *
+ * content-tag's output often puts a doc comment's end and a declaration on one line.
+ * With one segment per line, the declaration resolves to the comment.
+ */
+function columnMap(code: MagicString, source: string) {
+  return code.generateMap({ source, includeContent: true, hires: true });
+}
+
+/**
  * The `.gts` / `.gjs` file behind a virtual `.ts` / `.js` id,
  * and content-tag's map back to it (absent when there was no `<template>` to compile).
  */
@@ -237,21 +251,12 @@ export function emberTransform(): Plugin {
             return { code, map };
           }
 
-          // No map here would attribute the code to the virtual id,
-          // a file that does not exist.
-          // An identity map names the real file instead.
-          // It needs a segment for every column (`hires`), like the specifier rewrite's.
+          // The map names the `.gts` / `.gjs` file.
+          // Without it, the `.js.map` names the virtual id, which is not on disk.
           //
-          // The backing gets no map: declaration lines already match the source.
+          // The backing needs no map, because its declaration lines match the source.
           backings.set(id, { fileName });
-          return {
-            code: source,
-            map: new MagicString(source).generateMap({
-              source: fileName,
-              includeContent: true,
-              hires: true,
-            }),
-          };
+          return { code: source, map: columnMap(new MagicString(source), fileName) };
         }
 
         return null;
@@ -287,18 +292,7 @@ export function emberTransform(): Plugin {
           return null;
         }
 
-        // rolldown traces each output position back through this map
-        // (then through content-tag's, for a .gts module).
-        // A position between two segments resolves to the one before it,
-        // so this map needs a segment for every column (`hires`).
-        //
-        // With one segment per line, every position resolves to the start of its line.
-        // In content-tag's output, that is often a doc comment's `*/`
-        // rather than the declaration after it on the same line.
-        return {
-          code: output.toString(),
-          map: output.generateMap({ source: id, includeContent: true, hires: true }),
-        };
+        return { code: output.toString(), map: columnMap(output, id) };
       },
     },
 
