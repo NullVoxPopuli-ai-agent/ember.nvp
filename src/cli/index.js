@@ -12,10 +12,11 @@ import { askIfOK } from "./questions/ok.js";
 import { askToWrite } from "./questions/write.js";
 import { styleText } from "node:util";
 import { readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { cwd } from "#utils/cwd.js";
 import { Project } from "#utils/project.js";
 import { Stage } from "#utils/stage.js";
-import { askReplaceOrUpdate } from "./questions/replace-or-update.js";
+import { askAboutProjectHere, askReplaceOrUpdate } from "./questions/replace-or-update.js";
 
 /**
  * This whole file's primary purpose is to be an interactive CLI
@@ -29,9 +30,10 @@ async function main() {
 
   p.intro(styleText(["bgCyan", "black"], " ember.nvp "));
 
-  const projectName = await askName();
-  const projectPath = await askPath(projectName);
-  const replaceOrUpdate = await askReplaceOrUpdate(projectPath);
+  const here = await askAboutProjectHere();
+  const projectName = await askName(here === "update" ? cwd : undefined);
+  const projectPath = here ? cwd : await askPath(projectName);
+  const replaceOrUpdate = here ?? (await askReplaceOrUpdate(projectPath));
   const projectType = await askProjectType();
   const selectedLayers = await askLayers(projectType);
   const packageManager = await askPackageManager();
@@ -158,8 +160,10 @@ async function main() {
     // no readable package.json -- skip the suggestion
   }
 
+  let projectDir = relative(cwd, projectPath);
+
   p.note(
-    `cd ${projectName}\n` +
+    (projectDir ? `cd ${projectDir}\n` : "") +
       `${packageManager} install\n` +
       lintFixStep +
       `${packageManager} ${packageManager === "npm" ? "run " : ""}start`,

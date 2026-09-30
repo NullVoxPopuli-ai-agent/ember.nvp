@@ -1,10 +1,15 @@
 import { cancel, isCancel, text } from "@clack/prompts";
 import packageNameRegex from "package-name-regex";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { answers, printArgInUse } from "#args";
 
 const DEFAULT = "my-app";
 
-export async function askName() {
+/**
+ * @param {string} [existingProject] a directory whose package.json name fills in the answer
+ */
+export async function askName(existingProject) {
   if (answers.name) {
     let isValid = packageNameRegex.test(answers.name);
     if (isValid) {
@@ -13,10 +18,15 @@ export async function askName() {
       return answers.name;
     }
   }
+
+  let existingName = existingProject ? readName(existingProject) : undefined;
+  let fallback = existingName ?? DEFAULT;
+
   const projectName = await text({
     message: "What is your project name?",
-    placeholder: DEFAULT,
-    defaultValue: DEFAULT,
+    placeholder: fallback,
+    defaultValue: fallback,
+    initialValue: existingName,
     validate(value) {
       if (!value || value.length === 0) return;
 
@@ -33,5 +43,17 @@ export async function askName() {
     return process.exit(0);
   }
 
-  return projectName ?? DEFAULT;
+  return projectName ?? fallback;
+}
+
+/**
+ * @param {string} directory
+ * @returns {string | undefined}
+ */
+function readName(directory) {
+  let { name } = JSON.parse(readFileSync(join(directory, "package.json"), "utf-8"));
+
+  if (typeof name === "string" && packageNameRegex.test(name)) {
+    return name;
+  }
 }
