@@ -1,14 +1,14 @@
 {
   "solution": {
     "ember.nvp": {
-      "impact": "patch",
-      "oldVersion": "1.11.1",
-      "newVersion": "1.11.2",
+      "impact": "minor",
+      "oldVersion": "1.11.2",
+      "newVersion": "1.12.0",
       "tagName": "latest",
       "constraints": [
         {
-          "impact": "patch",
-          "reason": "Appears in changelog section :bug: Bug Fix"
+          "impact": "minor",
+          "reason": "Appears in changelog section :rocket: Enhancement"
         }
       ],
       "pkgJSONPath": "./package.json"
@@ -23,5 +23,5 @@
       "oldVersion": "1.2.0"
     }
   },
-  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.11.2 (patch)\n\n#### :bug: Bug Fix\n* `ember.nvp`\n  * [#150](https://github.com/NullVoxPopuli/ember.nvp/pull/150) Keep the range when bumping a dependency ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
+  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.12.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`\n  * [#152](https://github.com/NullVoxPopuli/ember.nvp/pull/152) Ask about the project in the current directory first ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
 }
