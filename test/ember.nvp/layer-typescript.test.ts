@@ -55,8 +55,8 @@ describe("layer: typescript, version 7", () => {
     it("installs TypeScript 7 as @typescript/native, and TypeScript 6 for typescript-eslint", async () => {
       let deps = await devDependencies(project);
 
-      expect(deps["@typescript/native"]).toMatch(/^npm:typescript@7\./);
-      expect(deps["typescript"]).toMatch(/^npm:@typescript\/typescript6@6\./);
+      expect(deps["@typescript/native"]).toMatch(/^npm:typescript@\^7\./);
+      expect(deps["typescript"]).toMatch(/^npm:@typescript\/typescript6@\^6\./);
       expect(deps).toHaveProperty("ember-content-mapper");
       expect(deps).not.toHaveProperty("@glint/tsserver-plugin");
     });
@@ -172,7 +172,7 @@ describe("layer: typescript, version 7", () => {
         let manifest = await packageJson.read(project.directory);
 
         expect(manifest.scripts?.["lint:types"]).toBe("tsc --noEmit --runExternalCode");
-        expect(manifest.devDependencies?.["@typescript/native"]).toMatch(/^npm:typescript@7\./);
+        expect(manifest.devDependencies?.["@typescript/native"]).toMatch(/^npm:typescript@\^7\./);
         expect(manifest.devDependencies).not.toHaveProperty("typescript");
         expect(manifest.devDependencies).not.toHaveProperty("@glint/tsserver-plugin");
       });

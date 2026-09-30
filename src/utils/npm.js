@@ -1,6 +1,7 @@
 import latestVersion, { VersionNotFoundError } from "latest-version";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import semver from "semver";
 
 /**
  * @type {{ [name: string]: { [version: string]: string } }}
@@ -56,12 +57,12 @@ export async function getLatest(deps) {
         version =
           "link:" + resolve(join(import.meta.dirname, "../../packages", LOCAL_PACKAGES[dep]));
       } else if (alias) {
-        version = `npm:${alias.name}@${await resolveVersion(alias.name, alias.range)}`;
+        version = `npm:${alias.name}@${await bump(alias.name, alias.range)}`;
       } else {
         if (range == "workspace:*") {
           range = "latest";
         }
-        version = isFromRegistry(range) ? await resolveVersion(dep, range) : range;
+        version = isFromRegistry(range) ? await bump(dep, range) : range;
       }
 
       CACHE[dep] ||= {};
@@ -83,6 +84,28 @@ export async function getLatest(deps) {
  */
 function isFromRegistry(range) {
   return !/[:/]/.test(range);
+}
+
+/**
+ * Moves a range to the newest version it allows, and keeps its kind:
+ * - `^5.4.1` becomes `^5.5.2`, and `~` works the same way
+ * - an exact version stays exact
+ * - a dist-tag becomes the version it points at
+ *
+ * Other ranges (`>= 4.1.0`, `1.x`, `^1 || ^2`) stay as written.
+ * A new floor there would drop versions that the project supports.
+ *
+ * @param {string} name
+ * @param {string} range
+ */
+async function bump(name, range) {
+  let isTag = !semver.validRange(range);
+  let isExact = Boolean(semver.valid(range));
+  let [, operator = ""] = /^([\^~])\s*v?\d[\w.+-]*$/.exec(range) ?? [];
+
+  if (!isTag && !isExact && !operator) return range;
+
+  return operator + (await resolveVersion(name, range));
 }
 
 /**
