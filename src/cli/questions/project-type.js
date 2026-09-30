@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import { answers, printArgInUse } from "#args";
-import { detectProjectType } from "#utils/detect-project-type.js";
+import { detectProjectType } from "#bases";
 
 /**
  * addon is alias for library

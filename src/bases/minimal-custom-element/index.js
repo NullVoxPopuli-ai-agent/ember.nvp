@@ -1,4 +1,5 @@
 import { packageJson } from "ember-apply";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getLatest } from "#utils/npm.js";
@@ -26,10 +27,23 @@ const TEMPLATE_TAG_NAME = "minimal-custom-element";
  * - No linting or formatting
  *
  * Testing, linting, formatting, etc. are opt-in via layers.
+ *
+ * @type {import('#types').Base}
  */
 export default {
   label: "Minimal Custom Element Base",
   description: "An Ember component packaged as a custom element (web component)",
+
+  /**
+   * @param {string} directory
+   */
+  detect(directory) {
+    return ["src/register.ts", "src/register.js"].some((file) => {
+      let path = join(directory, file);
+
+      return existsSync(path) && readFileSync(path, "utf-8").includes("customElements.define");
+    });
+  },
 
   /**
    * 1. Apply files

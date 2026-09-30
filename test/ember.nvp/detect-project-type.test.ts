@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { generate, mktemp } from "#test-helpers";
-import { detectProjectType } from "#utils/detect-project-type.js";
+import { detectProjectType } from "#bases";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ProjectType } from "#types";

@@ -2,7 +2,7 @@ import { packageJson } from "ember-apply";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getLatest } from "#utils/npm.js";
-import { applyFolderTo } from "#utils/fs.js";
+import { applyFolderTo, readJSON } from "#utils/fs.js";
 import { removeConfiguredPlugin } from "#utils/babel.js";
 
 /**
@@ -17,10 +17,24 @@ import { removeConfiguredPlugin } from "#utils/babel.js";
  * - No testing framework
  * - No linting or formatting
  * - No ember-welcome-page
+ *
+ * @type {import('#types').Base}
  */
 export default {
   label: "Minimal Extension Base",
   description: "Bare minimum browser extension structure with an Ember popup",
+
+  /**
+   * A web app can have a manifest.json too (for a PWA),
+   * but only a browser extension's manifest has `manifest_version`.
+   *
+   * @param {string} directory
+   */
+  detect(directory) {
+    return ["manifest.json", "public/manifest.json"].some(
+      (file) => readJSON(join(directory, file))?.manifest_version !== undefined,
+    );
+  },
 
   /**
    * 1. Apply files

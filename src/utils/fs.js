@@ -1,4 +1,4 @@
-import { existsSync, lstatSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { readFile, glob, mkdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { parse as parsePath } from "node:path";
@@ -14,6 +14,23 @@ import { rewriteImportsToMatchFiles } from "./rewrite-imports.js";
  * - files inside dot-directories (`.github/...`)
  */
 const EVERY_FILE = ["**/*", "**/.*", "**/.*/**/*"];
+
+/**
+ * Project detection reads files that can be missing or broken,
+ * and a guess must not stop the CLI.
+ *
+ * @param {string} path
+ * @returns {any} undefined when the file is missing or is not JSON
+ */
+export function readJSON(path) {
+  if (!existsSync(path)) return;
+
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return;
+  }
+}
 
 /**
  * Modified version of applyFolder from ember-apply.

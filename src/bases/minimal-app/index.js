@@ -1,7 +1,8 @@
 import { packageJson, js } from "ember-apply";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getLatest } from "#utils/npm.js";
-import { applyFolderTo } from "#utils/fs.js";
+import { applyFolderTo, readJSON } from "#utils/fs.js";
 import { removeConfiguredPlugin } from "#utils/babel.js";
 
 /**
@@ -14,10 +15,22 @@ import { removeConfiguredPlugin } from "#utils/babel.js";
  * - No linting or formatting
  * - No ember-welcome-page
  * - No warp-drive (opt-in if needed)
+ *
+ * @type {import('#types').Base}
  */
 export default {
   label: "Minimal App Base",
   description: "Bare minimum Ember app structure",
+
+  /**
+   * @param {string} directory
+   */
+  detect(directory) {
+    return (
+      readJSON(join(directory, "package.json"))?.["ember-addon"]?.type === "app" ||
+      existsSync(join(directory, "app"))
+    );
+  },
 
   /**
    * 1. Apply files

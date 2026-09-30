@@ -89,6 +89,18 @@ export interface Layer {
   >;
 }
 
+export interface Base {
+  label: string;
+  description: string;
+  /**
+   * Whether the directory holds a project of this base's type.
+   *
+   * When updating a project, the type question starts at the first base that detects it.
+   */
+  detect: (directory: string) => boolean;
+  run: (project: Project) => Promise<void>;
+}
+
 export interface DiscoveredLayer extends Layer {
   /**
    * The unique name of the layer.
