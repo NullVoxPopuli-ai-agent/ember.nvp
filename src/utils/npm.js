@@ -1,4 +1,4 @@
-import latestVersion from "latest-version";
+import latestVersion, { VersionNotFoundError } from "latest-version";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -56,12 +56,12 @@ export async function getLatest(deps) {
         version =
           "link:" + resolve(join(import.meta.dirname, "../../packages", LOCAL_PACKAGES[dep]));
       } else if (alias) {
-        version = `npm:${alias.name}@${await latestVersion(alias.name, { version: alias.range })}`;
+        version = `npm:${alias.name}@${await resolveVersion(alias.name, alias.range)}`;
       } else {
         if (range == "workspace:*") {
           range = "latest";
         }
-        version = await latestVersion(dep, { version: range });
+        version = isFromRegistry(range) ? await resolveVersion(dep, range) : range;
       }
 
       CACHE[dep] ||= {};
@@ -72,6 +72,36 @@ export async function getLatest(deps) {
   );
 
   return Object.fromEntries(results);
+}
+
+/**
+ * git, file, link, url, and catalog specs have no registry version to bump to.
+ *
+ * Semver ranges and dist-tags never contain `:` or `/`.
+ *
+ * @param {string} range
+ */
+function isFromRegistry(range) {
+  return !/[:/]/.test(range);
+}
+
+/**
+ * Deprecated versions are skipped when the range allows another version.
+ *
+ * A package can deprecate a whole major (ESLint 9, once 10 was out).
+ * An existing project can still ask for that range.
+ *
+ * @param {string} name
+ * @param {string} range
+ */
+async function resolveVersion(name, range) {
+  try {
+    return await latestVersion(name, { version: range });
+  } catch (error) {
+    if (!(error instanceof VersionNotFoundError)) throw error;
+
+    return await latestVersion(name, { version: range, omitDeprecated: false });
+  }
 }
 
 /**
