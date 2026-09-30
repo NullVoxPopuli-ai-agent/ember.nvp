@@ -1,5 +1,6 @@
 import remapping, { type EncodedSourceMap } from "@jridgewell/remapping";
 import { Preprocessor } from "content-tag";
+import MagicString from "magic-string";
 import { existsSync, realpathSync } from "node:fs";
 import { readFile, writeFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -41,26 +42,17 @@ async function fixDtsExtensionsInDir(dir: string): Promise<void> {
 }
 
 /**
- * A sourcemap mapping every generated line to the same line of the input.
+ * A sourcemap from `code` back to `source`, with a segment for every column.
  *
- * - `AAAA` is the [0, 0, 0, 0] VLQ segment
- *   (first line maps to source 0, line 0, column 0)
- * - `AACA` is [0, 0, +1, 0]
- *   (each following line advances the source line by one)
+ * rolldown traces each output position back through the map of every hook.
+ * A position between two segments resolves to the segment before it,
+ * so fewer segments move positions to an earlier column.
  *
- * Exact at line granularity, which is all the specifier rewrite can disturb.
+ * content-tag's output often puts a doc comment's end and a declaration on one line.
+ * With one segment per line, the declaration resolves to the comment.
  */
-function lineIdentityMap(id: string, source: string) {
-  return {
-    version: 3,
-    sources: [id],
-    sourcesContent: [source],
-    names: [],
-    mappings: source
-      .split("\n")
-      .map((_, line) => (line === 0 ? "AAAA" : "AACA"))
-      .join(";"),
-  };
+function columnMap(code: MagicString, source: string) {
+  return code.generateMap({ source, includeContent: true, hires: true });
 }
 
 /**
@@ -259,8 +251,12 @@ export function emberTransform(): Plugin {
             return { code, map };
           }
 
+          // The map names the `.gts` / `.gjs` file.
+          // Without it, the `.js.map` names the virtual id, which is not on disk.
+          //
+          // The backing needs no map, because its declaration lines match the source.
           backings.set(id, { fileName });
-          return source;
+          return { code: source, map: columnMap(new MagicString(source), fileName) };
         }
 
         return null;
@@ -282,19 +278,21 @@ export function emberTransform(): Plugin {
         // "load it (registering its declaration), then map to the declaration id".
         // A `.d.ts` id is returned as-is: unloadable when the module isn't registered yet
         // (e.g. the `.gts` is only ever type-imported).
-        const output = input.replace(
-          /(['"`])((?:\.\.?\/|\/|@|[A-Za-z0-9_\-])[^'"]*?\.gts)\1/g,
-          (_m, q, p) => `${q}${p.replace(/\.gts$/, ".ts")}${q}`,
-        );
+        const output = new MagicString(input);
 
-        if (output === input) {
+        for (const match of input.matchAll(
+          /(['"`])((?:\.\.?\/|\/|@|[A-Za-z0-9_\-])[^'"]*?\.gts)\1/g,
+        )) {
+          // `.gts` ends the specifier, just before the closing quote.
+          const end = match.index + match[0].length - 1;
+          output.overwrite(end - ".gts".length, end, ".ts");
+        }
+
+        if (!output.hasChanged()) {
           return null;
         }
 
-        // The rewrite only shortens import specifiers in place,
-        // so a line-identity map is accurate to the line
-        // (and to the column, for everything before the first rewritten specifier on a line).
-        return { code: output, map: lineIdentityMap(id, input) };
+        return { code: output.toString(), map: columnMap(output, id) };
       },
     },
 

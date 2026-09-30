@@ -1,11 +1,28 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
+import { existsSync } from "node:fs";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { rolldown } from "rolldown";
-import type { Plugin } from "rolldown";
+import type { OutputChunk, Plugin } from "rolldown";
 import { describe, expect, it } from "vitest";
 
 import { emberTransform } from "./transform.ts";
+
+interface BuildOptions {
+  input?: string[];
+  plugins?: (dir: string) => Plugin[];
+  sourcemap?: boolean;
+}
+
+interface Build {
+  /**
+   * The output directory.
+   * Nothing is written to it, but sourcemaps name their sources relative to it.
+   */
+  dir: string;
+  chunks: OutputChunk[];
+}
 
 /**
  * Drives the plugin through a real rolldown build.
@@ -16,16 +33,11 @@ import { emberTransform } from "./transform.ts";
  * Every bare (package) specifier is marked external,
  * so the build only exercises the local `.gts` / `.gjs` / `.ts` handling
  * and doesn't need real dependencies installed.
- *
- * Returns the concatenated code of every emitted chunk.
  */
-async function bundle(
+async function generate(
   files: Record<string, string>,
-  {
-    input = ["index.ts"],
-    plugins = () => [],
-  }: { input?: string[]; plugins?: (dir: string) => Plugin[] } = {},
-): Promise<string> {
+  { input = ["index.ts"], plugins = () => [], sourcemap = false }: BuildOptions = {},
+): Promise<Build> {
   const dir = await mkdtemp(path.join(tmpdir(), "ember-rolldown-build-"));
 
   for (const [relative, source] of Object.entries(files)) {
@@ -43,16 +55,71 @@ async function bundle(
     onwarn() {},
   });
 
-  const { output } = await build.generate({ format: "es" });
+  const outDir = path.join(dir, "dist");
+  const { output } = await build.generate({ format: "es", dir: outDir, sourcemap });
 
-  const code = output
-    .filter((chunk): chunk is typeof chunk & { code: string } => "code" in chunk)
-    .map((chunk) => chunk.code)
-    .join("\n");
+  return {
+    dir: outDir,
+    chunks: output.filter((chunk): chunk is OutputChunk => chunk.type === "chunk"),
+  };
+}
+
+/**
+ * Returns the concatenated code of every chunk that `generate` emits.
+ */
+async function bundle(files: Record<string, string>, options?: BuildOptions): Promise<string> {
+  const { chunks } = await generate(files, options);
+  const code = chunks.map((chunk) => chunk.code).join("\n");
 
   // rolldown's `//#region <path>` comments reference the random temp dir.
   // Collapse them to the bare filename so snapshots stay deterministic.
   return code.replace(/(\/\/#region ).*\/([^/\n]+)$/gm, "$1$2");
+}
+
+/**
+ * Follows each needle in the emitted code through the chunk's sourcemap,
+ * the way a debugger does.
+ *
+ * One line per needle:
+ * - the source the map names
+ * - that source's line (1-based) and column (0-based)
+ * - the source text from that column on
+ */
+async function traced(build: Build, needles: string[]): Promise<string> {
+  const [chunk] = build.chunks;
+  if (!chunk?.map) throw new Error("The build emitted no sourcemap");
+
+  const map = new TraceMap(chunk.map.toString());
+  const lines = chunk.code.split("\n");
+  const result: string[] = [];
+
+  for (const needle of needles) {
+    const index = lines.findIndex((line) => line.includes(needle));
+    if (index === -1) throw new Error(`\`${needle}\` is not in the output:\n${chunk.code}`);
+
+    const {
+      source,
+      line: sourceLine,
+      column,
+    } = originalPositionFor(map, {
+      line: index + 1,
+      column: lines[index]!.indexOf(needle),
+    });
+
+    if (!source || sourceLine === null || column === null) {
+      result.push(`${needle} -> (unmapped)`);
+      continue;
+    }
+
+    const sourcePath = path.resolve(build.dir, source);
+    const text = existsSync(sourcePath)
+      ? (await readFile(sourcePath, "utf8")).split("\n")[sourceLine - 1]?.slice(column)
+      : "(no such file)";
+
+    result.push(`${needle} -> ${source}:${sourceLine}:${column}  ${text}`);
+  }
+
+  return result.join("\n");
 }
 
 describe("emberTransform (full plugin via rolldown)", () => {
@@ -312,5 +379,135 @@ describe("emberTransform (full plugin via rolldown)", () => {
     // (content-tag's map survives the specifier-rewrite pass)
     const sources = (chunk as { map?: { sources: string[] } }).map?.sources ?? [];
     expect(sources.some((source) => source.endsWith("foo.gts"))).toBe(true);
+  });
+
+  it("names the .gts file in the map of a .gts with no <template>", async () => {
+    // content-tag does not run on these modules, but they still load under a virtual .ts id.
+    // helpers.gts goes through the specifier rewrite, and plain.gts does not.
+    const { chunks } = await generate(
+      {
+        "index.ts": [
+          `export { double } from './helpers.gts';`,
+          `export { half } from './plain.gts';`,
+        ].join("\n"),
+        "helpers.gts": [
+          `import { half } from './plain.gts';`,
+          `export function double(value: number): number {`,
+          `  return half(value) * 4;`,
+          `}`,
+        ].join("\n"),
+        "plain.gts": [
+          `export function half(value: number): number {`,
+          `  return value / 2;`,
+          `}`,
+        ].join("\n"),
+      },
+      { sourcemap: true },
+    );
+
+    // index.ts only re-exports, so it contributes no code and no source.
+    expect(chunks[0]?.map?.sources.toSorted()).toEqual(["../helpers.gts", "../plain.gts"]);
+  });
+
+  it("maps a rewritten .gts module to its exact source lines and columns", async () => {
+    // content-tag puts a doc comment's closing `*/` and the next declaration on one line.
+    // widget.gts imports another .gts, so the specifier rewrite runs on that output.
+    const build = await generate(
+      {
+        "index.ts": `export { Widget } from './widget.ts';`,
+        "widget.gts": [
+          `import { helper } from './other.gts';`,
+          ``,
+          `/**`,
+          ` * A widget.`,
+          ` */`,
+          `export class Widget {`,
+          `  /**`,
+          `   * The name.`,
+          `   */`,
+          `  get name(): string {`,
+          `    return helper();`,
+          `  }`,
+          ``,
+          `  <template>Hello {{this.name}}</template>`,
+          `}`,
+        ].join("\n"),
+        "other.gts": [`export function helper(): string {`, `  return 'x';`, `}`].join("\n"),
+      },
+      { sourcemap: true },
+    );
+
+    expect(await traced(build, ["Widget = class", "name()", "return helper"]))
+      .toMatchInlineSnapshot(`
+        "Widget = class -> ../widget.gts:6:13  Widget {
+        name() -> ../widget.gts:10:6  name(): string {
+        return helper -> ../widget.gts:11:4  return helper();"
+      `);
+  });
+
+  it("keeps columns in a plain .ts module that imports a .gts", async () => {
+    const build = await generate(
+      {
+        "index.ts": [
+          `import { helper } from './other.gts';`,
+          ``,
+          `export function greet(name: string): string {`,
+          `  return helper() + name;`,
+          `}`,
+        ].join("\n"),
+        "other.gts": [`export function helper(): string {`, `  return 'x';`, `}`].join("\n"),
+      },
+      { sourcemap: true },
+    );
+
+    expect(await traced(build, ["greet", "return helper"])).toMatchInlineSnapshot(`
+      "greet -> ../index.ts:3:16  greet(name: string): string {
+      return helper -> ../index.ts:4:2  return helper() + name;"
+    `);
+  });
+
+  it("maps .gts modules that the specifier rewrite does not touch", async () => {
+    // other.gts has no <template>, and widget.gts imports no .gts.
+    // Neither goes through the rewrite.
+    const build = await generate(
+      {
+        "index.ts": [
+          `export { helper } from './other.ts';`,
+          `export { Widget } from './widget.ts';`,
+        ].join("\n"),
+        "widget.gts": [
+          `import { helper } from './other.ts';`,
+          ``,
+          `/**`,
+          ` * A widget.`,
+          ` */`,
+          `export class Widget {`,
+          `  get name(): string {`,
+          `    return helper();`,
+          `  }`,
+          ``,
+          `  <template>Hello {{this.name}}</template>`,
+          `}`,
+        ].join("\n"),
+        "other.gts": [`export function helper(): string {`, `  return 'x';`, `}`].join("\n"),
+      },
+      { sourcemap: true },
+    );
+
+    expect(
+      await traced(build, [
+        "helper() {",
+        `return "x"`,
+        "Widget = class",
+        "name()",
+        "return helper",
+      ]),
+    ).toMatchInlineSnapshot(`
+      "helper() { -> ../other.gts:1:16  helper(): string {
+      return "x" -> ../other.gts:2:2  return 'x';
+      Widget = class -> ../widget.gts:6:13  Widget {
+      name() -> ../widget.gts:7:6  name(): string {
+      return helper -> ../widget.gts:8:4  return helper();"
+    `);
   });
 });
