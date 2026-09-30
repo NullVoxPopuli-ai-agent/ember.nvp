@@ -8,7 +8,7 @@ describe("validateOption", () => {
       type: "number",
       prompt: "Enter number",
       default: 10,
-      validate: (val: number) => val > 0 || "Must be greater than 0",
+      validate: (val: number) => (val > 0 ? undefined : "Must be greater than 0"),
     };
 
     it("validates valid numbers", () => {
@@ -34,7 +34,7 @@ describe("validateOption", () => {
       type: "text",
       prompt: "Enter text",
       default: "default-title",
-      validate: (val: string) => val.length >= 3 || "Minimum 3 chars",
+      validate: (val: string) => (val.length >= 3 ? undefined : "Minimum 3 chars"),
     };
 
     it("validates valid text", () => {
@@ -45,10 +45,10 @@ describe("validateOption", () => {
       expect(validateOption(schema, "hi")).toEqual({ ok: false, error: "Minimum 3 chars" });
     });
 
-    it("fails with a generic message when validate returns false", () => {
-      const strict: LayerOptionSchema = { ...schema, validate: () => false };
+    it("fails with the message of an Error", () => {
+      const strict: LayerOptionSchema = { ...schema, validate: () => new Error("Nope") };
 
-      expect(validateOption(strict, "hello")).toEqual({ ok: false, error: "Invalid value" });
+      expect(validateOption(strict, "hello")).toEqual({ ok: false, error: "Nope" });
     });
   });
 
@@ -103,7 +103,7 @@ describe("validateOption", () => {
         { label: "A", value: "a" },
         { label: "B", value: "b" },
       ],
-      validate: (val: string[]) => val.length > 0 || "Select at least one",
+      validate: (val: string[]) => (val.length > 0 ? undefined : "Select at least one"),
     };
 
     it("validates listed choices", () => {
@@ -119,6 +119,34 @@ describe("validateOption", () => {
 
     it("fails custom validate function", () => {
       expect(validateOption(schema, [])).toEqual({ ok: false, error: "Select at least one" });
+    });
+  });
+
+  describe("Standard Schema validation", () => {
+    // A hand-written schema, so the test needs no schema library
+    const positive = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: (value: unknown) =>
+          typeof value === "number" && value > 0
+            ? { value }
+            : { issues: [{ message: "Must be positive" }] },
+      },
+    };
+
+    const schema: LayerOptionSchema = {
+      type: "number",
+      prompt: "Enter number",
+      validate: positive,
+    };
+
+    it("passes values the schema accepts", () => {
+      expect(validateOption(schema, "3")).toEqual({ ok: true, value: 3 });
+    });
+
+    it("fails with the schema's first issue", () => {
+      expect(validateOption(schema, "-3")).toEqual({ ok: false, error: "Must be positive" });
     });
   });
 });

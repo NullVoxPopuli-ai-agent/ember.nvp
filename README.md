@@ -235,7 +235,7 @@ export default {
       type: "number",
       prompt: "Enter maximum item count:",
       default: 10,
-      validate: (val) => val > 0 || "Must be greater than 0",
+      validate: (val) => (val > 0 ? undefined : "Must be greater than 0"),
     },
   },
 
@@ -278,7 +278,8 @@ Each option needs:
 Each option can also have:
 
 - `default`
-- `validate(value)`: return a string to reject the value with that message
+- `validate`: the same as [clack's `validate`](https://github.com/bombshell-dev/clack/tree/main/packages/prompts#text).
+  A function that returns a message to reject the value, or a [Standard Schema](https://standardschema.dev).
 - `detect(project)`: the value that an existing project uses now.
   When updating a project, the question starts at this value instead of `default`.
 

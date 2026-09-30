@@ -1,3 +1,4 @@
+import type { Validate } from "@clack/core";
 import { Project } from "./project.js";
 export type PackageManager = "pnpm" | "npm";
 export type ProjectType = "app" | "library" | "extension" | "custom-element";
@@ -25,12 +26,13 @@ export interface LayerOptionSchema {
    */
   options?: LayerSelectChoice[];
   /**
-   * Receives the value after conversion to the option's type.
+   * The same as clack's `validate`:
+   * a function that returns a message (or an Error) to reject the value,
+   * or a Standard Schema.
    *
-   * Return a string to reject the value with that message.
-   * `false` rejects it with a generic message.
+   * Receives the value after conversion to the option's type.
    */
-  validate?: (value: any) => boolean | string | undefined;
+  validate?: Validate<any>;
   /**
    * Reads the value that an existing project uses now.
    *

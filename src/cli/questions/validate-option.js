@@ -1,3 +1,5 @@
+import { runValidation } from "@clack/core";
+
 /**
  * @typedef {import('#types').LayerOptionSchema} LayerOptionSchema
  *
@@ -22,12 +24,11 @@ export function validateOption(schema, rawValue) {
 
   if (!converted.ok || !schema.validate) return converted;
 
-  const result = schema.validate(converted.value);
+  const error = runValidation(schema.validate, converted.value);
 
-  if (typeof result === "string") return { ok: false, error: result };
-  if (result === false) return { ok: false, error: "Invalid value" };
+  if (!error) return converted;
 
-  return converted;
+  return { ok: false, error: error instanceof Error ? error.message : error };
 }
 
 /**

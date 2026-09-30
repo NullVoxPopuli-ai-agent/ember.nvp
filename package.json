@@ -29,6 +29,7 @@
     "test:vitest": "FORCE_COLOR=1 vitest"
   },
   "dependencies": {
+    "@clack/core": "^1.4.2",
     "@clack/prompts": "^1.6.0",
     "babel-remove-types": "^2.0.0",
     "content-tag": "^4.2.0",

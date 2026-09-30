@@ -15,13 +15,14 @@ describe("Layer Options Feature", () => {
         type: "number",
         prompt: "How many units do you want?",
         default: 7,
-        validate: (val: number) => val > 0 || "Must be greater than 0",
+        validate: (val: number) => (val > 0 ? undefined : "Must be greater than 0"),
       },
       customTitle: {
         type: "text",
         prompt: "Enter a custom title",
         default: "My Kitchen Sink",
-        validate: (input: string) => (input.trim().length > 0 ? true : "Title cannot be empty"),
+        validate: (input: string) =>
+          input.trim().length > 0 ? undefined : "Title cannot be empty",
       },
       flavor: {
         type: "select",
@@ -45,7 +46,7 @@ describe("Layer Options Feature", () => {
           { label: "Soap Dispenser", value: "soap-dispenser", hint: "Built-in pump" },
           { label: "Garbage Disposal", value: "garbage-disposal", hint: "Continuous feed" },
         ],
-        validate: (val: string[]) => (val.length > 0 ? true : "Select at least one extra"),
+        validate: (val: string[]) => (val.length > 0 ? undefined : "Select at least one extra"),
       },
     },
     async run(_project, _options = {}) {
