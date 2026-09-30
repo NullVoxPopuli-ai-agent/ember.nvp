@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import { styleText, parseArgs } from "node:util";
-import { layers as discoveredLayers } from "#layers";
+import { layers as discoveredLayers, layerNames } from "#layers";
 import { validateOption } from "./questions/validate-option.js";
 import { printHelp } from "./help.js";
 
@@ -36,6 +36,7 @@ export const coreOptions = /** @type {const} */ ({
   layers: {
     type: "string",
     multiple: true,
+    choices: layerNames,
     description: "Layers to apply to the project (repeat for multiple layers)",
   },
 
