@@ -1,5 +1,25 @@
 # Changelog
 
+## Release (2026-09-30)
+
+* ember.nvp 1.10.0 (minor)
+* @nullvoxpopuli/ember-rolldown 2.10.0 (minor)
+
+#### :rocket: Enhancement
+* `ember.nvp`, `@nullvoxpopuli/ember-rolldown`
+  * [#144](https://github.com/NullVoxPopuli/ember.nvp/pull/144) Layer options, with an ESLint preset and a TypeScript version ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+  * [#142](https://github.com/NullVoxPopuli/ember.nvp/pull/142) Add a TypeScript 7.1+ layer ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+* `@nullvoxpopuli/ember-rolldown`, `ember.nvp`
+  * [#140](https://github.com/NullVoxPopuli/ember.nvp/pull/140) Point .gts declaration maps at the .gts source ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### :bug: Bug Fix
+* `@nullvoxpopuli/ember-rolldown`, `ember.nvp`
+  * [#145](https://github.com/NullVoxPopuli/ember.nvp/pull/145) Make .gts source maps point at the real source ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+  * [#140](https://github.com/NullVoxPopuli/ember.nvp/pull/140) Point .gts declaration maps at the .gts source ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
 ## Release (2026-09-28)
 
 * ember.nvp 1.9.0 (minor)
