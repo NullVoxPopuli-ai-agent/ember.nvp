@@ -2,8 +2,8 @@
   "solution": {
     "ember.nvp": {
       "impact": "minor",
-      "oldVersion": "1.11.2",
-      "newVersion": "1.12.0",
+      "oldVersion": "1.12.0",
+      "newVersion": "1.13.0",
       "tagName": "latest",
       "constraints": [
         {
@@ -23,5 +23,5 @@
       "oldVersion": "1.2.0"
     }
   },
-  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.12.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`\n  * [#152](https://github.com/NullVoxPopuli/ember.nvp/pull/152) Ask about the project in the current directory first ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
+  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.13.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`\n  * [#154](https://github.com/NullVoxPopuli/ember.nvp/pull/154) Default the project type to the detected type on update ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
 }
