@@ -2,6 +2,17 @@
 
 ## Release (2026-09-30)
 
+* ember.nvp 1.11.1 (patch)
+
+#### :bug: Bug Fix
+* `ember.nvp`
+  * [#148](https://github.com/NullVoxPopuli/ember.nvp/pull/148) Keep update runs working for deprecated and non-registry deps ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+## Release (2026-09-30)
+
 * ember.nvp 1.11.0 (minor)
 
 #### :rocket: Enhancement

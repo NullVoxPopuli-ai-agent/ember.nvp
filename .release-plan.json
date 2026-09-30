@@ -1,14 +1,14 @@
 {
   "solution": {
     "ember.nvp": {
-      "impact": "minor",
-      "oldVersion": "1.10.0",
-      "newVersion": "1.11.0",
+      "impact": "patch",
+      "oldVersion": "1.11.0",
+      "newVersion": "1.11.1",
       "tagName": "latest",
       "constraints": [
         {
-          "impact": "minor",
-          "reason": "Appears in changelog section :rocket: Enhancement"
+          "impact": "patch",
+          "reason": "Appears in changelog section :bug: Bug Fix"
         }
       ],
       "pkgJSONPath": "./package.json"
@@ -23,5 +23,5 @@
       "oldVersion": "1.2.0"
     }
   },
-  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.11.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`\n  * [#146](https://github.com/NullVoxPopuli/ember.nvp/pull/146) Better help ([@tcjr](https://github.com/tcjr))\n\n#### Committers: 1\n- Tom Carter ([@tcjr](https://github.com/tcjr))\n"
+  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.11.1 (patch)\n\n#### :bug: Bug Fix\n* `ember.nvp`\n  * [#148](https://github.com/NullVoxPopuli/ember.nvp/pull/148) Keep update runs working for deprecated and non-registry deps ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
 }
