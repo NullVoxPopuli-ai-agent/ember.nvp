@@ -2,6 +2,17 @@
 
 ## Release (2026-09-30)
 
+* ember.nvp 1.13.0 (minor)
+
+#### :rocket: Enhancement
+* `ember.nvp`
+  * [#154](https://github.com/NullVoxPopuli/ember.nvp/pull/154) Default the project type to the detected type on update ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+## Release (2026-09-30)
+
 * ember.nvp 1.12.0 (minor)
 
 #### :rocket: Enhancement
