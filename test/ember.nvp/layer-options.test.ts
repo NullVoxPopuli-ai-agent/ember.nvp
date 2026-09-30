@@ -228,6 +228,7 @@ describe("Layer Options Feature", () => {
 
     expect(output.slice(output.indexOf("Layer Options:"))).toMatchInlineSnapshot(`
       "Layer Options:
+        Layer: fake-kitchen-sink
             --fake-kitchen-sink.unitCount <number>
             How many units do you want? [default: 7]
 
@@ -240,7 +241,7 @@ describe("Layer Options Feature", () => {
             --[no-]fake-kitchen-sink.enableLogging <boolean>
             Enable detailed sink logging? [default: true]
 
-            --fake-kitchen-sink.extras <string>
+            --fake-kitchen-sink.extras <string> [--fake-kitchen-sink.extras <string> ...]
             Select optional kitchen sink extras [choices: "soap-dispenser", "garbage-disposal"] [default: ["soap-dispenser"]]
       "
     `);
