@@ -1,7 +1,8 @@
 import { applyFolderTo } from "#utils/fs.js";
 import { getLatest } from "#utils/npm.js";
 import { hasConfiguredPlugin, prependPlugin, removeConfiguredPlugin } from "#utils/babel.js";
-import { packageJson } from "ember-apply";
+import { addTsdownConfigProperty } from "#utils/tsdown-config.js";
+import { packageJson, tsconfig } from "ember-apply";
 import { join } from "node:path";
 
 const deps = {
@@ -39,6 +40,7 @@ const libraryTsDeps = {
 };
 
 const TEST_BABEL_CONFIG = "config/test/babel.config.js";
+const PUBLISH_TSCONFIG = "config/tsconfig.publish.json";
 
 /**
  * @param {import('#utils/project.js').Project} project
@@ -72,6 +74,10 @@ export default {
 
     if (isLibrary) {
       await syncTestBabelConfig(project, ts);
+
+      if (ts) {
+        await usePublishTsconfig(project);
+      }
     }
 
     await packageJson.addDevDependencies(
@@ -141,6 +147,12 @@ export default {
       }
     }
 
+    if (project.isLibrary && project.wantsTypeScript && !project.hasFile(PUBLISH_TSCONFIG)) {
+      if (!explain) return false;
+
+      reasons.push(`${PUBLISH_TSCONFIG} is missing`);
+    }
+
     if (explain) {
       return {
         isSetup: reasons.length === 0,
@@ -201,5 +213,47 @@ async function syncTestBabelConfig(project, ts) {
       },
     ]`,
     TEST_BABEL_CONFIG,
+  );
+}
+
+/**
+ * A library's tsconfig.json starts as its publish config:
+ * it covers only `src`, with `isolatedDeclarations` for the declarations tsdown emits.
+ *
+ * Tests live outside `src`, and editors, `lint:types`, and eslint read tsconfig.json.
+ * So in a TypeScript library, this layer:
+ * - widens tsconfig.json to `src` and `tests`, without the publish-only settings
+ * - moves those settings to `config/tsconfig.publish.json`, which the build uses
+ *
+ * @param {import('#utils/project.js').Project} project
+ */
+async function usePublishTsconfig(project) {
+  await applyFolderTo(join(import.meta.dirname, "library-ts-files"), project);
+  await addTsdownConfigProperty(project, "tsconfig", `tsconfig: "./${PUBLISH_TSCONFIG}"`);
+
+  let config = await tsconfig.read(project.directory);
+
+  if (!needsWidening(config)) return;
+
+  await tsconfig.modify((json) => {
+    json.include ||= [];
+
+    if (!json.include.includes("tests")) {
+      json.include.push("tests");
+    }
+
+    delete json.compilerOptions?.rootDir;
+    delete json.compilerOptions?.isolatedDeclarations;
+  }, project.directory);
+}
+
+/**
+ * @param {Record<string, any>} config
+ */
+function needsWidening(config) {
+  return (
+    !config.include?.includes("tests") ||
+    config.compilerOptions?.rootDir !== undefined ||
+    config.compilerOptions?.isolatedDeclarations !== undefined
   );
 }

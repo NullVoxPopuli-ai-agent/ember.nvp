@@ -161,6 +161,7 @@ describe("layer: qunit", () => {
           "README.md",
           "config/test/babel.config.js",
           "config/test/testem.cjs",
+          "config/tsconfig.publish.json",
           "package.json",
           "src/index.ts",
           "tests/rendering/.gitkeep",
@@ -258,15 +259,38 @@ describe("layer: qunit", () => {
       `);
     });
 
-    it("leaves the publish build config alone", async () => {
+    it("builds with a publish tsconfig, so tsconfig.json can cover the tests", async () => {
       expect(await project.read("tsdown.config.js")).toMatchInlineSnapshot(`
         "import { defineConfig } from "tsdown";
         import { ember } from "@nullvoxpopuli/ember-rolldown";
-
-        export default defineConfig({
-          entry: ["./src/index.ts"],
-          plugins: [ember()],
-        });
+        export default defineConfig({ entry: ["./src/index.ts"], plugins: [ember()], tsconfig: "./config/tsconfig.publish.json" })"
+      `);
+      expect(await project.read("config/tsconfig.publish.json")).toMatchInlineSnapshot(`
+        "{
+          "extends": "../tsconfig.json",
+          "include": ["../src"],
+          "compilerOptions": {
+            "rootDir": "../src",
+            "isolatedDeclarations": true
+          }
+        }
+        "
+      `);
+      expect(await project.read("tsconfig.json")).toMatchInlineSnapshot(`
+        "{
+          "extends": "@ember/library-tsconfig",
+          "include": ["src", "tests"],
+          "compilerOptions": {
+            "lib": ["esnext", "dom", "dom.iterable"],
+            "types": ["ember-source/types", "@glint/ember-tsc/types"],
+          },
+          "contentMappers": [
+            {
+              "package": "ember-content-mapper",
+              "extensions": [".gts", ".gjs"],
+            },
+          ],
+        }
         "
       `);
     });
@@ -289,6 +313,29 @@ describe("layer: qunit", () => {
 
       expect(output).toContain("precompileTemplate");
       expect(output).not.toContain("createTemplateFactory");
+    });
+  });
+
+  describe("library (TypeScript) with eslint", () => {
+    it("lints the tests", { timeout: 300_000 }, async () => {
+      const project = await generate({
+        type: "library",
+        name: "my-lib",
+        layers: ["eslint-bundled", "qunit", "typescript"],
+      });
+      dirs.push(project.directory);
+
+      let install = await execa("pnpm install", { cwd: project.directory, shell: true });
+      expect(install.exitCode).toBe(0);
+
+      // eslint's project service cannot parse a file that no tsconfig includes
+      let lint = await execa("pnpm lint:eslint", {
+        cwd: project.directory,
+        shell: true,
+        reject: false,
+        all: true,
+      });
+      expect(lint.exitCode, lint.all).toBe(0);
     });
   });
 
