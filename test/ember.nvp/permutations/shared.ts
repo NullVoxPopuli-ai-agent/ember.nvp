@@ -16,7 +16,7 @@ const RE_APPLY_ONLY = new Set<string>([
 ]);
 const INITIAL_ONLY = new Set<string>([
   // baseline,
-  // "eslint-bundled-nvp",
+  // "eslint-bundled",
   // "typescript"
 ]);
 
@@ -55,14 +55,12 @@ const TYPE_FOR_BASE: Record<(typeof bases)[number], ProjectType> = {
  * so linear cross-group coverage remains.
  */
 const CHECK_LAYERS = new Set<string>([
-  "eslint-bundled-ember",
-  "eslint-bundled-nvp",
+  "eslint-bundled",
   "eslint-ejected",
   "prettier",
   "publint",
   "are-the-types-wrong",
   "expect-type",
-  "typescript-7",
 ]);
 
 type PermutationGroup = "main" | "checks";

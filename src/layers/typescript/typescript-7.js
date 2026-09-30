@@ -68,100 +68,65 @@ function hasContentMapper(config) {
 }
 
 /**
- * @type {import('#types').Layer}
+ * @param {import('#utils/project.js').Project} project
  */
-export default {
-  label: "TypeScript 7.1+",
-  hint: "type-checks .gts and .gjs with ember-content-mapper",
+export async function run(project) {
+  await addTSConfig(project);
+  await updateTSConfig(project);
+  await updatePackageJson(project);
+  await syncTypeScript6(project);
+  await updateBabelConfig(project);
+}
 
-  async run(project) {
-    await addTSConfig(project);
-    await updateTSConfig(project);
-    await updatePackageJson(project);
-    await syncTypeScript6(project);
-    await updateBabelConfig(project);
-  },
+/**
+ * @param {import('#utils/project.js').Project} project
+ * @param {Record<string, any>} manifest
+ * @returns {Promise<string[]>} why TypeScript 7 is not set up
+ */
+export async function reasons(project, manifest) {
+  const reasons = [];
 
-  /**
-   * @overload
-   * @param {import('#utils/project.js').Project} project
-   * @param {true} explain
-   * @returns {Promise<{ isSetup: boolean; reasons: string[] }>}
-   */
-  /**
-   * @overload
-   * @param {import('#utils/project.js').Project} project
-   * @param {boolean | undefined} [explain]
-   * @returns {Promise<boolean>}
-   */
-  async isSetup(project, explain) {
-    const reasons = [];
+  if (!project.hasFile("tsconfig.json")) {
+    reasons.push("tsconfig.json is missing");
+  } else if (!hasContentMapper(await tsconfig.read(project.directory))) {
+    reasons.push(`tsconfig.json is missing the ${MAPPER} entry in contentMappers`);
+  }
 
-    if (!project.hasFile("tsconfig.json")) {
-      if (!explain) return false;
+  // Only projects with their own babel config need the TS plugin in it.
+  // Without one (libraries), ember() strips types.
+  if (project.hasFile("babel.config.js") && !(await hasConfiguredTSBabel(project))) {
+    reasons.push(`babel.config is missing @babel/plugin-transform-typescript`);
+  }
 
-      reasons.push("tsconfig.json is missing");
-    } else if (!hasContentMapper(await tsconfig.read(project.directory))) {
-      if (!explain) return false;
+  if (!manifest.scripts?.["lint:types"]?.includes("--runExternalCode")) {
+    reasons.push(`package.json's "lint:types" script is missing --runExternalCode`);
+  }
 
-      reasons.push(`tsconfig.json is missing the ${MAPPER} entry in contentMappers`);
+  for (let dep of Object.keys(depsFor(project))) {
+    if (!manifest.devDependencies?.[dep]) {
+      reasons.push(`package.json is missing ${dep} in devDependencies`);
     }
+  }
 
-    // Only projects with their own babel config need the TS plugin in it.
-    // Without one (libraries), ember() strips types.
-    if (project.hasFile("babel.config.js") && !(await hasConfiguredTSBabel(project))) {
-      if (!explain) return false;
+  if (manifest.devDependencies?.typescript && !hasTypeScript6(manifest)) {
+    reasons.push(`package.json's typescript must be @typescript/typescript6, or tsc is ambiguous`);
+  }
 
-      reasons.push(`babel.config is missing @babel/plugin-transform-typescript`);
-    }
+  return reasons;
+}
 
-    let manifest = await packageJson.read(project.directory);
-
-    if (!manifest.scripts?.["lint:types"]?.includes("--runExternalCode")) {
-      if (!explain) return false;
-
-      reasons.push(`package.json's "lint:types" script is missing --runExternalCode`);
-    }
-
-    for (let dep of Object.keys(depsFor(project))) {
-      if (!manifest.devDependencies?.[dep]) {
-        if (!explain) return false;
-
-        reasons.push(`package.json is missing ${dep} in devDependencies`);
-      }
-    }
-
-    if (manifest.devDependencies?.typescript && !hasTypeScript6(manifest)) {
-      if (!explain) return false;
-
-      reasons.push(
-        `package.json's typescript must be @typescript/typescript6, or tsc is ambiguous`,
-      );
-    }
-
-    if (explain) {
-      return {
-        isSetup: reasons.length === 0,
-        reasons,
-      };
-    }
-
-    return reasons.length === 0;
-  },
-
-  /**
-   * @param {import('#utils/project.js').Project} project
-   */
-  readme(project) {
-    return `### TypeScript
+/**
+ * @param {import('#utils/project.js').Project} project
+ */
+export function readme(project) {
+  return `### TypeScript
 
 This project uses TypeScript 7 and [ember-content-mapper](https://github.com/NullVoxPopuli/ember-content-mapper) for static type checking.
 
 - \`${project.runPrefix} lint:types\` - Typecheck code with TypeScript
 - Imports of \`.gts\` and \`.gjs\` modules must include the extension
 - Editor setup: see [ember-content-mapper's editors section](https://github.com/NullVoxPopuli/ember-content-mapper#editors)`;
-  },
-};
+}
 
 /**
  * @param {import('#utils/project.js').Project} project

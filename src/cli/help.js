@@ -1,32 +1,82 @@
 import { styleText } from "node:util";
 
 /**
+ * CLI flags only carry strings and booleans
+ *
+ * @type {Record<import('#types').LayerOptionType, string>}
+ */
+const FLAG_TYPES = {
+  text: "string",
+  number: "number",
+  confirm: "boolean",
+  select: "string",
+  multiselect: "string",
+};
+
+/**
  * Print help text to stdout.
  *
  * @param {Record<string, any>} coreOptions
+ * @param {import('#types').DiscoveredLayer[]} [layers]
  */
-export function printHelp(coreOptions) {
+export function printHelp(coreOptions, layers = []) {
   const title = styleText(["bgCyan", "black"], " ember.nvp ");
   console.log(`${title}\n`);
   console.log(`${styleText("bold", "Usage:")} npx ember.nvp [options]\n`);
 
   console.log(styleText("bold", "Core Options:"));
   for (const [name, config] of Object.entries(coreOptions)) {
-    const flag = `--${name}`;
-    const alias = config.short ? `-${config.short}, ` : "    ";
-    const typeStr = config.type ? styleText("dim", `<${config.type}>`) : "";
-    const desc = config.description || "";
-    const choices = config.choices
-      ? styleText(
-          "yellow",
-          ` [choices: ${config.choices.map((/** @type {string} */ c) => `"${c}"`).join(", ")}]`,
-        )
-      : "";
-
-    console.log(`  ${styleText("cyan", alias)}${styleText("cyan", flag)} ${typeStr}`);
-    if (desc || choices) {
-      console.log(`      ${desc}${choices}`);
-    }
-    console.log("");
+    printOption({
+      flag: `--${name}`,
+      alias: config.short ? `-${config.short}, ` : "    ",
+      type: config.type,
+      description: config.description,
+      choices: config.choices,
+    });
   }
+
+  const withOptions = layers.filter((layer) => layer.options);
+
+  if (withOptions.length === 0) return;
+
+  console.log(styleText("bold", "Layer Options:"));
+  for (const layer of withOptions) {
+    for (const [key, schema] of Object.entries(layer.options ?? {})) {
+      const name = `${layer.name}.${key}`;
+
+      printOption({
+        flag: schema.type === "confirm" ? `--[no-]${name}` : `--${name}`,
+        alias: "    ",
+        type: FLAG_TYPES[schema.type],
+        description: schema.prompt,
+        choices: schema.options?.map((choice) => choice.value),
+        fallback: schema.default,
+      });
+    }
+  }
+}
+
+/**
+ * @param {{
+ *   flag: string,
+ *   alias: string,
+ *   type?: string,
+ *   description?: string,
+ *   choices?: string[],
+ *   fallback?: unknown,
+ * }} option
+ */
+function printOption({ flag, alias, type, description = "", choices, fallback }) {
+  const typeStr = type ? styleText("dim", `<${type}>`) : "";
+  const choicesStr = choices
+    ? styleText("yellow", ` [choices: ${choices.map((c) => `"${c}"`).join(", ")}]`)
+    : "";
+  const fallbackStr =
+    fallback === undefined ? "" : styleText("dim", ` [default: ${JSON.stringify(fallback)}]`);
+
+  console.log(`  ${styleText("cyan", alias)}${styleText("cyan", flag)} ${typeStr}`);
+  if (description || choicesStr || fallbackStr) {
+    console.log(`      ${description}${choicesStr}${fallbackStr}`);
+  }
+  console.log("");
 }

@@ -71,9 +71,11 @@ describe("layer: readme", () => {
 
         ### TypeScript
 
-        This project uses TypeScript and Glint for static type checking.
+        This project uses TypeScript 7 and [ember-content-mapper](https://github.com/NullVoxPopuli/ember-content-mapper) for static type checking.
 
-        - \`pnpm lint:types\` - Typecheck code with Glint/TypeScript
+        - \`pnpm lint:types\` - Typecheck code with TypeScript
+        - Imports of \`.gts\` and \`.gjs\` modules must include the extension
+        - Editor setup: see [ember-content-mapper's editors section](https://github.com/NullVoxPopuli/ember-content-mapper#editors)
         "
       `);
     });

@@ -37,7 +37,15 @@ export function hasTypeScript6(manifest) {
 }
 
 /**
- * Reads the manifest instead of asking the typescript-7 layer.
+ * @param {import('#utils/project.js').Project} project
+ * @returns {boolean}
+ */
+export function wantsTypeScript7(project) {
+  return project.wantsLayer("typescript") && project.getLayerOptions("typescript").version === "7";
+}
+
+/**
+ * Reads the manifest instead of asking the typescript layer.
  * That layer's isSetup asks about eslint, and the eslint layers ask about TypeScript 7.
  *
  * @param {import('#utils/project.js').Project} project
@@ -45,9 +53,7 @@ export function hasTypeScript6(manifest) {
  * @returns {boolean}
  */
 export function usesTypeScript7(project, manifest) {
-  return (
-    project.wantsLayer("typescript-7") || Boolean(manifest.devDependencies?.["@typescript/native"])
-  );
+  return wantsTypeScript7(project) || Boolean(manifest.devDependencies?.["@typescript/native"]);
 }
 
 /**

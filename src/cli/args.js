@@ -1,5 +1,7 @@
 import * as p from "@clack/prompts";
 import { styleText, parseArgs } from "node:util";
+import { layers as discoveredLayers } from "#layers";
+import { validateOption } from "./questions/validate-option.js";
 import { printHelp } from "./help.js";
 
 export const coreOptions = /** @type {const} */ ({
@@ -65,29 +67,116 @@ export const coreOptions = /** @type {const} */ ({
  */
 const isHelpRequested = process.argv.slice(2).some((arg) => arg === "--help" || arg === "-h");
 if (isHelpRequested) {
-  printHelp(coreOptions);
+  printHelp(coreOptions, discoveredLayers);
   process.exit(0);
 }
 
 /**
- * The CLI options are parsed using Node's `parseArgs` in default strict mode.
+ * Parse the core flags, plus one `--<layer>.<option>` flag per layer option.
+ *
+ * Every layer adds its flags, not only the selected ones,
+ * because layers are selected after parsing.
+ *
+ * Throws on an unknown flag, or on a value given to a boolean flag.
+ *
+ * @param {string[]} args
+ * @param {import('#types').DiscoveredLayer[]} layers
  */
-const { values } = parseArgs({
-  options: coreOptions,
-});
+export function parseCliArgs(args, layers) {
+  /** @type {Record<string, import("node:util").ParseArgsOptionDescriptor>} */
+  const options = { ...coreOptions };
 
-const { replaceOrUpdate, name, type, layers = [], packageManager, path, confirm, write } = values;
+  for (const layer of layers) {
+    for (const [key, schema] of Object.entries(layer.options ?? {})) {
+      options[`${layer.name}.${key}`] = {
+        type: schema.type === "confirm" ? "boolean" : "string",
+        multiple: schema.type === "multiselect",
+      };
+    }
+  }
+
+  // allowNegative makes `--no-<layer>.<option>` turn a "confirm" option off
+  return parseArgs({ args, options, allowNegative: true }).values;
+}
+
+/** @type {ReturnType<typeof parseCliArgs>} */
+let values;
+
+try {
+  values = parseCliArgs(process.argv.slice(2), discoveredLayers);
+} catch (error) {
+  // parseArgs errors name the flag, so a stack trace adds nothing for the user
+  p.cancel(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
+
+const typedValues =
+  /** @type {ReturnType<typeof parseArgs<{ options: typeof coreOptions }>>['values']} */ (values);
 
 export const answers = {
-  name,
-  type,
-  layers,
-  packageManager,
-  path,
-  confirm,
-  replaceOrUpdate,
-  write,
+  ...typedValues,
+  layers: typedValues.layers ?? [],
 };
+
+/**
+ * Extract layer options from parsed CLI values.
+ *
+ * Exits when a value does not pass the option's validation.
+ *
+ * @param {import('#types').DiscoveredLayer[]} layers
+ * @param {Record<string, any>} [parsedValues] Defaults to the parsed `process.argv`
+ * @returns {Record<string, Record<string, any>>}
+ */
+export function parseLayerOptionsFromParsedArgs(layers = [], parsedValues = values) {
+  /** @type {Record<string, Record<string, any>>} */
+  const result = {};
+
+  for (const layer of layers) {
+    if (!layer.options) continue;
+
+    for (const [optionKey, schema] of Object.entries(layer.options)) {
+      const flagKey = `${layer.name}.${optionKey}`;
+      const rawVal = parsedValues[flagKey];
+
+      if (rawVal === undefined) continue;
+
+      const validation = validateOption(
+        schema,
+        schema.type === "multiselect" ? splitCommas(rawVal) : rawVal,
+      );
+
+      if (!validation.ok) {
+        p.cancel(`Invalid CLI argument '--${flagKey}': ${validation.error}`);
+        process.exit(1);
+      }
+
+      (result[layer.name] ??= {})[optionKey] = validation.value;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * `--x.y a,b` means the same as `--x.y a --x.y b`
+ *
+ * @param {string[]} values
+ * @returns {string[]}
+ */
+function splitCommas(values) {
+  /** @type {string[]} */
+  const result = [];
+
+  for (const value of values) {
+    for (const part of value.split(",")) {
+      const trimmed = part.trim();
+
+      if (trimmed) result.push(trimmed);
+    }
+  }
+
+  return result;
+}
 
 /**
  *

@@ -154,6 +154,11 @@ Adds modern ESLint configuration with:
 - Flat config (ESLint 9+)
 - Prettier compatibility
 
+Choose a preset:
+
+- `ember` (default): [ember-eslint](https://github.com/NullVoxPopuli/ember-eslint), which follows the official configuration
+- `nvp`: [@nullvoxpopuli/eslint-configs](https://github.com/NullVoxPopuli/eslint-configs)
+
 ### 🎨 Prettier (optional)
 
 Code formatting with:
@@ -172,13 +177,17 @@ Code formatting with:
 
 Super experimental vitest setup using [ember-vitest](https://github.com/NullVoxPopuli/ember-vitest)
 
-### TypeScript 7.1+ (optional)
+### TypeScript (optional, on by default for libraries)
 
-Type checking with native TypeScript 7 and [ember-content-mapper](https://github.com/NullVoxPopuli/ember-content-mapper) for `.gts` and `.gjs`.
+Choose a version:
 
-- `lint:types` runs `tsc --noEmit --runExternalCode`.
-- Replaces the TypeScript layer when you select both.
-- ESLint keeps TypeScript 6, because typescript-eslint needs its API.
+- `7` (default): native TypeScript 7 and [ember-content-mapper](https://github.com/NullVoxPopuli/ember-content-mapper) for `.gts` and `.gjs`.
+  `lint:types` runs `tsc --noEmit --runExternalCode`.
+  ESLint keeps TypeScript 6, because typescript-eslint needs its API.
+- `6`: TypeScript 6 and Glint's `ember-tsc`.
+
+A TypeScript 6 project moves to 7 when you choose 7.
+A TypeScript 7 project stays on 7.
 
 ### expect-type (optional)
 
@@ -196,7 +205,7 @@ Type tests for TypeScript libraries with [expect-type](https://github.com/mmkal/
 2. **Selection**: the user selects which optional layers to include
 3. **Execution**: each layer's `run()` function is called in sequence:
    ```js
-   await layer.run(project);
+   await layer.run(project, project.getLayerOptions(layer.name));
    ```
 4. **Layer Functions**: inside `run()`, layers use [`ember-apply`](https://ember-apply.pages.dev/) to apply codemods:
    - copy files from the `files/` directory
@@ -212,20 +221,34 @@ To add a new layer, create a new directory in `src/layers/` with:
 1. **`index.js`** - Layer definition:
 
 ```js
+// src/layers/itemizer/index.js
 import { packageJson, files } from "ember-apply";
 import { join } from "node:path";
 
 export default {
   label: "My Feature",
-  description: "What this feature does",
+  hint: "What this feature does",
 
-  async run(project) {
+  // Optional: questions to ask when the layer is selected (see "Layer options")
+  options: {
+    maxItems: {
+      type: "number",
+      prompt: "Enter maximum item count:",
+      default: 10,
+      validate: (val) => (val > 0 ? undefined : "Must be greater than 0"),
+    },
+  },
+
+  async run(project, { maxItems }) {
     // Copy files from files/ directory
     await files.applyFolder(join(import.meta.dirname, "files"), project.directory);
 
     await packageJson.addDependencies({ "some-package": "^1.0.0" }, project.directory);
 
-    await packageJson.addScripts({ "my-script": 'echo "Hello"' }, project.directory);
+    await packageJson.addScripts(
+      { "my-script": `echo "Max items: ${maxItems}"` },
+      project.directory,
+    );
   },
 
   // Optionally add something to the README.md file
@@ -239,3 +262,33 @@ export default {
    - files are copied to the target directory, keeping their structure
 
 The CLI discovers the layer and offers it as an option.
+
+### Layer options
+
+A layer's `options` are questions that the CLI asks after the user selects the layer.
+`run(project, options)` receives the answers, with defaults filled in.
+`project.getLayerOptions(name)` returns the options of any layer.
+
+Each option needs:
+
+- `type`: `"text"`, `"number"`, `"select"`, `"confirm"`, or `"multiselect"`
+- `prompt`: the question, also shown in `--help`
+- `options`, for `select` and `multiselect`: the choices, as `{ value, label, hint }`
+
+Each option can also have:
+
+- `default`
+- `validate`: the same as [clack's `validate`](https://github.com/bombshell-dev/clack/tree/main/packages/prompts#text).
+  A function that returns a message to reject the value, or a [Standard Schema](https://standardschema.dev).
+- `detect(project)`: the value that an existing project uses now.
+  When updating a project, the question starts at this value instead of `default`.
+
+Each option is also a CLI flag, `--<layer>.<option>`:
+
+```bash
+npx ember.nvp --layers eslint-bundled --eslint-bundled.preset nvp
+```
+
+- `confirm` options are on with `--<layer>.<option>`, and off with `--no-<layer>.<option>`.
+- `multiselect` options take the flag more than once, or a comma-separated list.
+- `npx ember.nvp --help` lists every option.

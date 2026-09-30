@@ -8,9 +8,11 @@ import { packageJson } from "ember-apply";
 
 import type { Project } from "ember.nvp";
 
-const typescript7 = layers.find((layer) => layer.name === "typescript-7")!;
 const typescript = layers.find((layer) => layer.name === "typescript")!;
-const eslint = layers.find((layer) => layer.name === "eslint-bundled-nvp")!;
+const eslint = layers.find((layer) => layer.name === "eslint-bundled")!;
+
+const typescript6 = { typescript: { version: "6" }, "eslint-bundled": { preset: "nvp" } };
+const typescript7 = { typescript: { version: "7" }, "eslint-bundled": { preset: "nvp" } };
 
 function run(project: Project, command: string) {
   return execa(command, { cwd: project.directory, shell: true, all: true, reject: false });
@@ -22,7 +24,7 @@ async function devDependencies(project: Project): Promise<Record<string, string>
   return manifest.devDependencies ?? {};
 }
 
-describe("layer: typescript-7", () => {
+describe("layer: typescript, version 7", () => {
   const dirs: string[] = [];
 
   afterAll(async () => {
@@ -39,13 +41,14 @@ describe("layer: typescript-7", () => {
     beforeAll(async () => {
       project = await generate({
         type: "app",
-        layers: ["typescript-7", "eslint-bundled-nvp", "git"],
+        layers: ["typescript", "eslint-bundled", "git"],
+        options: typescript7,
       });
       dirs.push(project.directory);
     });
 
     it("is setup", async () => {
-      await expectIsSetup(project, typescript7);
+      await expectIsSetup(project, typescript);
       await expectIsSetup(project, eslint);
     });
 
@@ -59,7 +62,7 @@ describe("layer: typescript-7", () => {
     });
 
     it("reapplying causes no changes", async () => {
-      await reapply(project, ["typescript-7", "eslint-bundled-nvp", "git"]);
+      await reapply(project, ["typescript", "eslint-bundled", "git"]);
 
       expect(await project.gitHasDiff()).toBe(false);
     });
@@ -114,12 +117,12 @@ describe("layer: typescript-7", () => {
     let project: Project;
 
     beforeAll(async () => {
-      project = await generate({ type: "app", layers: ["typescript-7"] });
+      project = await generate({ type: "app", layers: ["typescript"], options: typescript7 });
       dirs.push(project.directory);
     });
 
     it("is setup", async () => {
-      await expectIsSetup(project, typescript7);
+      await expectIsSetup(project, typescript);
     });
 
     it("has no typescript, because nothing needs TypeScript 6", async () => {
@@ -136,23 +139,88 @@ describe("layer: typescript-7", () => {
     });
   });
 
-  describe("migrating a TypeScript 6 app", () => {
+  describe.each(["app", "library"] as const)(
+    "migrating a TypeScript 6 %s without eslint",
+    (type) => {
+      let project: Project;
+
+      beforeAll(async () => {
+        let layers = ["typescript", "git"];
+        let before = await generate({
+          type,
+          layers,
+          options: { typescript: { version: "6" } },
+        });
+        dirs.push(before.directory);
+
+        expect(await devDependencies(before)).toHaveProperty("typescript");
+
+        project = await generate({
+          directory: before.directory,
+          type,
+          layers,
+          options: { typescript: { version: "7" } },
+        });
+      });
+
+      it("is setup, and detects version 7", async () => {
+        await expectIsSetup(project, typescript);
+        expect(await typescript.options?.version?.detect?.(project)).toBe("7");
+      });
+
+      it("removes typescript and the tsserver plugin, because nothing needs TypeScript 6", async () => {
+        let manifest = await packageJson.read(project.directory);
+
+        expect(manifest.scripts?.["lint:types"]).toBe("tsc --noEmit --runExternalCode");
+        expect(manifest.devDependencies?.["@typescript/native"]).toMatch(/^npm:typescript@7\./);
+        expect(manifest.devDependencies).not.toHaveProperty("typescript");
+        expect(manifest.devDependencies).not.toHaveProperty("@glint/tsserver-plugin");
+      });
+
+      it("reapplying causes no changes", async () => {
+        await reapply(project, ["typescript", "git"]);
+
+        expect(await project.gitHasDiff()).toBe(false);
+      });
+
+      it("type checking and the build work", async () => {
+        if (type === "library") await writeLibrarySource(project, "typescript");
+
+        let install = await run(project, "pnpm install");
+        expect(install.exitCode, install.all).toBe(0);
+
+        let types = await run(project, "pnpm lint:types");
+        expect(types.exitCode, types.all).toBe(0);
+
+        let build = await run(project, "pnpm build");
+        expect(build.exitCode, build.all).toBe(0);
+      });
+    },
+  );
+
+  describe("migrating a TypeScript 6 app with eslint", () => {
     let project: Project;
 
     beforeAll(async () => {
-      project = await generate({
-        type: "app",
-        layers: ["typescript", "eslint-bundled-nvp", "git"],
-      });
-      dirs.push(project.directory);
+      let layers = ["typescript", "eslint-bundled", "git"];
+      let before = await generate({ type: "app", layers, options: typescript6 });
+      dirs.push(before.directory);
 
-      await reapply(project, ["typescript", "typescript-7", "eslint-bundled-nvp", "git"]);
+      project = await generate({
+        directory: before.directory,
+        type: "app",
+        layers,
+        options: typescript7,
+      });
     });
 
     it("is setup", async () => {
-      await expectIsSetup(project, typescript7);
       await expectIsSetup(project, typescript);
       await expectIsSetup(project, eslint);
+    });
+
+    it("detects the version the project uses", async () => {
+      expect(await typescript.options?.version?.detect?.(project)).toBe("7");
     });
 
     it("switches to TypeScript 7 and keeps TypeScript 6 for typescript-eslint", async () => {
@@ -184,7 +252,8 @@ describe("layer: typescript-7", () => {
       project = await generate({
         type: "library",
         name: "my-lib",
-        layers: ["typescript-7", "expect-type"],
+        layers: ["typescript", "expect-type"],
+        options: typescript7,
       });
       dirs.push(project.directory);
 
@@ -195,7 +264,7 @@ describe("layer: typescript-7", () => {
     });
 
     it("is setup", async () => {
-      await expectIsSetup(project, typescript7);
+      await expectIsSetup(project, typescript);
     });
 
     it("has no typescript, because nothing needs TypeScript 6", async () => {

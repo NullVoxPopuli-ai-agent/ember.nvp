@@ -2,6 +2,7 @@ import { packageJson } from "ember-apply";
 import { join } from "node:path";
 import { applyFolderTo } from "#utils/fs.js";
 import { getLatest } from "#utils/npm.js";
+import { usesTypeScript7 } from "#utils/typescript.js";
 
 const deps = {
   "expect-type": "^1.3.0",
@@ -35,7 +36,9 @@ export default {
     await applyFolderTo(join(import.meta.dirname, "files"), project);
     await packageJson.addDevDependencies(await getLatest(deps), project.directory);
     await packageJson.addScripts(
-      (await project.hasOrWantsLayer("typescript-7")) ? typescript7Scripts : scripts,
+      usesTypeScript7(project, await packageJson.read(project.directory))
+        ? typescript7Scripts
+        : scripts,
       project.directory,
     );
   },

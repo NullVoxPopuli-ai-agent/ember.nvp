@@ -32,7 +32,7 @@ for (let packageManager of ["pnpm", "npm"] as const) {
     });
 
     it("after emitting with an eslint layer", async () => {
-      await reapply(project, ["eslint-bundled-nvp", "github-actions"]);
+      await reapply(project, ["eslint-bundled", "github-actions"]);
 
       let result = await githubActionsLayer.isSetup(project);
 

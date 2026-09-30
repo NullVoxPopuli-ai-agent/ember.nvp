@@ -4,6 +4,7 @@ import * as p from "@clack/prompts";
 import { generateProject } from "./generator.js";
 import { askName } from "./questions/name.js";
 import { askLayers } from "./questions/layers.js";
+import { askLayerOptions } from "./questions/layer-options.js";
 import { askProjectType } from "./questions/project-type.js";
 import { askPackageManager } from "./questions/package-manager.js";
 import { askPath } from "./questions/path.js";
@@ -35,6 +36,19 @@ async function main() {
   const selectedLayers = await askLayers(projectType);
   const packageManager = await askPackageManager();
 
+  // Layer options start from what the project already uses
+  const existing =
+    replaceOrUpdate === "update"
+      ? new Project(projectPath, {
+          name: projectName,
+          type: projectType,
+          path: projectPath,
+          layers: selectedLayers,
+          packageManager,
+        })
+      : undefined;
+  const layerOptions = await askLayerOptions(selectedLayers, existing);
+
   await askIfOK();
 
   /**
@@ -60,6 +74,7 @@ async function main() {
     path: projectPath,
     layers: selectedLayers,
     packageManager,
+    options: layerOptions,
   });
 
   const s = p.spinner();

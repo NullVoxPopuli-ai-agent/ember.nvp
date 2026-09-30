@@ -1,35 +1,20 @@
 import { packageJson } from "ember-apply";
-import { hasConfiguredTSBabel } from "#utils/babel.js";
-import { getLatest } from "#utils/npm.js";
+import { readManifest } from "#utils/manifest.js";
 import { isLibraryType } from "#utils/project-type.js";
-import { addTSConfig, updateBabelConfig } from "#utils/typescript.js";
-
-const sharedDeps = {
-  "@glint/ember-tsc": "^1.0.8",
-  "@glint/template": "^1.7.3",
-  "@glint/tsserver-plugin": "^2.0.8",
-  typescript: "^6.0.3",
-};
-
-const appDeps = {
-  // Apps strip types via their own babel.config.js.
-  // Libraries have no babel config: ember() handles type stripping.
-  "@babel/plugin-transform-typescript": "^7.28.5",
-  "@ember/app-tsconfig": "^2.0.0",
-};
-
-const libraryDeps = {
-  "@ember/library-tsconfig": "^2.0.0",
-};
+import { usesTypeScript7 } from "#utils/typescript.js";
+import * as typescript6 from "./typescript-6.js";
+import * as typescript7 from "./typescript-7.js";
 
 /**
+ * A project that has TypeScript 7 keeps it, even when version 6 is selected.
+ * Nothing moves a project from 7 back to 6 yet.
+ *
  * @param {import('#utils/project.js').Project} project
  */
-function depsFor(project) {
-  return {
-    ...sharedDeps,
-    ...(project.isLibrary ? libraryDeps : appDeps),
-  };
+async function setupFor(project) {
+  let manifest = await packageJson.read(project.directory);
+
+  return usesTypeScript7(project, manifest) ? typescript7 : typescript6;
 }
 
 /**
@@ -48,17 +33,38 @@ export default {
     return isLibraryType(projectType);
   },
 
-  async run(project) {
-    // typescript-7 sets up TypeScript in its own way
-    if (await project.hasOrWantsLayer("typescript-7")) return;
+  options: {
+    version: {
+      type: "select",
+      prompt: "Which TypeScript version?",
+      default: "7",
+      options: [
+        {
+          value: "7",
+          label: "TypeScript 7.1+",
+          hint: "native tsc, checks .gts and .gjs with ember-content-mapper",
+        },
+        {
+          value: "6",
+          label: "TypeScript 6",
+          hint: "checks with Glint's ember-tsc",
+        },
+      ],
+      async detect(project) {
+        let deps = (await readManifest(project)).devDependencies ?? {};
 
-    /**
-     * TODO:
-     * - if jsconfig exists, switch to tsconfig
-     */
-    await addTSConfig(project);
-    await updatePackageJson(project);
-    await updateBabelConfig(project);
+        if (deps["@typescript/native"]) return "7";
+        if (deps.typescript) return "6";
+
+        return undefined;
+      },
+    },
+  },
+
+  async run(project) {
+    let setup = await setupFor(project);
+
+    await setup.run(project);
   },
 
   /**
@@ -74,45 +80,9 @@ export default {
    * @returns {Promise<boolean>}
    */
   async isSetup(project, explain) {
-    const reasons = [];
-
-    let hasTypeScript7 = await project.hasLayer("typescript-7");
-
-    if (hasTypeScript7 || project.wantsLayer("typescript-7")) {
-      if (!hasTypeScript7) reasons.push("typescript-7 is not set up");
-
-      return explain ? { isSetup: hasTypeScript7, reasons } : hasTypeScript7;
-    }
-
-    if (!project.hasFile("tsconfig.json")) {
-      if (!explain) return false;
-
-      reasons.push("tsconfig.json is missing");
-    }
-
-    // Only projects with their own babel config need the TS plugin in it.
-    // Without one (libraries), ember() strips types.
-    if (project.hasFile("babel.config.js") && !(await hasConfiguredTSBabel(project))) {
-      if (!explain) return false;
-
-      reasons.push(`babel.config is missing @babel/plugin-transform-typescript`);
-    }
-
     let manifest = await packageJson.read(project.directory);
-
-    if (!manifest.scripts?.["lint:types"]) {
-      if (!explain) return false;
-
-      reasons.push(`package.json is missing the "lint:types" script`);
-    }
-
-    for (let dep of Object.keys(depsFor(project))) {
-      if (!manifest.devDependencies?.[dep]) {
-        if (!explain) return false;
-
-        reasons.push(`package.json is missing ${dep} in devDependencies`);
-      }
-    }
+    let setup = usesTypeScript7(project, manifest) ? typescript7 : typescript6;
+    let reasons = await setup.reasons(project, manifest);
 
     if (explain) {
       return {
@@ -127,26 +97,9 @@ export default {
   /**
    * @param {import('#utils/project.js').Project} project
    */
-  readme(project) {
-    return `### TypeScript
+  async readme(project) {
+    let setup = await setupFor(project);
 
-This project uses TypeScript and Glint for static type checking.
-
-- \`${project.runPrefix} lint:types\` - Typecheck code with Glint/TypeScript`;
+    return setup.readme(project);
   },
 };
-
-/**
- * @param {import('#utils/project.js').Project} project
- */
-async function updatePackageJson(project) {
-  await packageJson.modify(async (json) => {
-    json.scripts ||= {};
-    json.devDependencies ||= {};
-
-    Object.assign(json.scripts, {
-      "lint:types": "ember-tsc --noEmit",
-    });
-    Object.assign(json.devDependencies, await getLatest(depsFor(project)));
-  }, project.directory);
-}
