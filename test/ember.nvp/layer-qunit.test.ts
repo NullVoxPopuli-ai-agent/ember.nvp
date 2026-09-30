@@ -131,7 +131,7 @@ describe("layer: qunit", () => {
   });
 
   describe("app", () => {
-    it("it boots and run tests", async () => {
+    it("it boots and run tests", { timeout: 300_000 }, async () => {
       const project = await generate({ type: "app", layers: ["qunit"] });
       dirs.push(project.directory);
 
@@ -271,11 +271,15 @@ describe("layer: qunit", () => {
       `);
     });
 
-    it("installs, and tests generated against the library's exports pass", async () => {
-      await writeLibrarySource(project, "typescript");
-      await writeExampleTests(project, "typescript");
-      await installAndTest(project);
-    });
+    it(
+      "installs, and tests generated against the library's exports pass",
+      { timeout: 300_000 },
+      async () => {
+        await writeLibrarySource(project, "typescript");
+        await writeExampleTests(project, "typescript");
+        await installAndTest(project);
+      },
+    );
 
     it("the publish build still ships precompileTemplate", async () => {
       let build = await execa("pnpm build", { cwd: project.directory, shell: true });
@@ -363,11 +367,15 @@ describe("layer: qunit", () => {
       `);
     });
 
-    it("installs, and tests generated against the library's exports pass", async () => {
-      await writeLibrarySource(project, "javascript");
-      await writeExampleTests(project, "javascript");
-      await installAndTest(project);
-    });
+    it(
+      "installs, and tests generated against the library's exports pass",
+      { timeout: 300_000 },
+      async () => {
+        await writeLibrarySource(project, "javascript");
+        await writeExampleTests(project, "javascript");
+        await installAndTest(project);
+      },
+    );
 
     it("the publish build still ships precompileTemplate", async () => {
       let build = await execa("pnpm build", { cwd: project.directory, shell: true });

@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
 import { answers, printArgInUse } from "#args";
+import { detectProjectType } from "#bases";
 
 /**
  * addon is alias for library
@@ -27,10 +28,10 @@ function isValid(selected) {
 }
 
 /**
- *
+ * @param {string} [existingProject] a directory whose project type becomes the default answer
  * @return {Promise<import('#types').ProjectType>}
  */
-export async function askProjectType() {
+export async function askProjectType(existingProject) {
   if (isValid(answers.type)) {
     printArgInUse("type", answers.type);
 
@@ -43,6 +44,7 @@ export async function askProjectType() {
 
   const answer = await p.select({
     message: "Which type of project?",
+    initialValue: existingProject ? detectProjectType(existingProject) : undefined,
     options: [
       { value: "app", label: "web app", hint: "generates html, js, and css to deploy to the web" },
       {

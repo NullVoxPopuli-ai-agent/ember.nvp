@@ -9,6 +9,7 @@
   "type": "module",
   "imports": {
     "#args": "./src/cli/args.js",
+    "#bases": "./src/bases/index.js",
     "#bases/*": "./src/bases/*/index.js",
     "#consolidators/*": "./src/consolidators/*",
     "#layers": "./src/layers/index.js",

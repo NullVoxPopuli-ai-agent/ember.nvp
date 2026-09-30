@@ -1,9 +1,6 @@
 import { mkdir, rm } from "node:fs/promises";
 
-import baseApp from "#bases/minimal-app";
-import baseExtension from "#bases/minimal-extension";
-import baseLibrary from "#bases/minimal-library";
-import baseCustomElement from "#bases/minimal-custom-element";
+import { bases } from "#bases";
 import { consolidateLintingScripts } from "../consolidators/linting.js";
 import { hasGit } from "#utils/git.js";
 /**
@@ -19,20 +16,7 @@ export async function generateProject(project, replaceOrUpdate) {
 
   await mkdir(project.directory, { recursive: true });
 
-  switch (project.desires.type) {
-    case "app":
-      await baseApp.run(project);
-      break;
-    case "library":
-      await baseLibrary.run(project);
-      break;
-    case "extension":
-      await baseExtension.run(project);
-      break;
-    case "custom-element":
-      await baseCustomElement.run(project);
-      break;
-  }
+  await bases[project.desires.type].run(project);
 
   /**
    * We could run these in a loop until there is no git diff

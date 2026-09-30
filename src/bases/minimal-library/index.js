@@ -1,8 +1,9 @@
 import { packageJson } from "ember-apply";
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getLatest } from "#utils/npm.js";
-import { applyFolderTo } from "#utils/fs.js";
+import { applyFolderTo, readJSON } from "#utils/fs.js";
 import { removeConfiguredPlugin } from "#utils/babel.js";
 
 /**
@@ -18,10 +19,28 @@ import { removeConfiguredPlugin } from "#utils/babel.js";
  * - No linting or formatting
  *
  * Testing, linting, formatting, etc. are opt-in via layers.
+ *
+ * @type {import('#types').Base}
  */
 export default {
   label: "Minimal Library Base",
   description: "Bare minimum Ember v2 library (addon) structure",
+
+  /**
+   * `ember-addon` marks v2 and classic addons.
+   * A library from this base has no `ember-addon`, only a tsdown config.
+   *
+   * @param {string} directory
+   */
+  detect(directory) {
+    let manifest = readJSON(join(directory, "package.json"));
+
+    return (
+      manifest?.["ember-addon"]?.type === "addon" ||
+      Boolean(manifest?.keywords?.includes("ember-addon")) ||
+      existsSync(join(directory, "tsdown.config.js"))
+    );
+  },
 
   /**
    * 1. Apply files

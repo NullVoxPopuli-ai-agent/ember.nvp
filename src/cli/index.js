@@ -34,7 +34,7 @@ async function main() {
   const projectName = await askName(here === "update" ? cwd : undefined);
   const projectPath = here ? cwd : await askPath(projectName);
   const replaceOrUpdate = here ?? (await askReplaceOrUpdate(projectPath));
-  const projectType = await askProjectType();
+  const projectType = await askProjectType(replaceOrUpdate === "update" ? projectPath : undefined);
   const selectedLayers = await askLayers(projectType);
   const packageManager = await askPackageManager();
 
