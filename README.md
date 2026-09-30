@@ -37,6 +37,15 @@ npx NullVoxPopuli/ember.nvp
 ### Updating an existing project
 
 You can run `ember.nvp` on top of an existing project to add layers to it.
+
+Run it inside the project. When the current directory has a `package.json`, the first question is what to do with it:
+
+- **update**: update the project in this directory. The project name starts as the `package.json` name.
+- **replace**: delete this directory and generate a new project in it.
+- **new**: generate a new project in another directory.
+
+`--path` skips this question, and `--replaceOrUpdate` answers it.
+
 Nothing is written to your project until you confirm. Before finishing, you choose to:
 
 - **write the files**: apply all of the staged changes

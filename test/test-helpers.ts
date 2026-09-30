@@ -119,7 +119,7 @@ export async function generate({
 
 const cliPath = join(import.meta.dirname, "../src/cli/index.js");
 
-export function cli(args: string[] = []) {
+export function cli(args: string[] = [], options: { cwd?: string } = {}) {
   let cmd = `node ${cliPath} ${args.join(" ")}`;
 
   console.log(`Running '${styleText("cyan", cmd)}'`);
@@ -127,7 +127,7 @@ export function cli(args: string[] = []) {
   let output = new MockWritable();
   let input = new MockReadable();
 
-  let execaPromise = execa("node", [cliPath, ...args]);
+  let execaPromise = execa("node", [cliPath, ...args], options);
   if (execaPromise.stdout) {
     execaPromise.stdout.pipe(output);
   }

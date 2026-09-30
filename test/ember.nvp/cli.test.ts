@@ -2,7 +2,7 @@ import { test, expect as hardExpect } from "vitest";
 import { cli, mktemp } from "#test-helpers";
 import { packageJson } from "ember-apply";
 import { existsSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 
@@ -151,5 +151,56 @@ test("cli exits on an invalid layer option flag, before writing anything", async
     expect(existsSync(path)).toBe(false);
   } finally {
     await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("in a project directory, asks to update first and fills in the project's name", async () => {
+  let dir = await mktemp("cli-update-here");
+  await writeFile(join(dir, "package.json"), JSON.stringify({ name: "@scope/my-lib" }));
+
+  // No --name or --path, so the CLI asks about the project in this directory
+  let args = [
+    "--type",
+    "library",
+    "--layers",
+    "prettier",
+    "--packageManager",
+    "pnpm",
+    "--confirm",
+    "yes",
+    "--write",
+    "yes",
+  ];
+  let prompts = ["This directory has a package.json", "What is your project name?"];
+
+  try {
+    let { execaPromise } = cli(args, { cwd: dir });
+    let output = "";
+
+    execaPromise.stdout?.on("data", (chunk) => {
+      output += chunk;
+
+      // Enter keeps the answer each prompt starts with: "update", then the name
+      if (prompts[0] && stripVTControlCharacters(output).includes(prompts[0])) {
+        prompts.shift();
+        execaPromise.stdin?.write("\r");
+      }
+    });
+
+    let res = await execaPromise;
+    let text = stripVTControlCharacters(output);
+
+    expect(res.exitCode).toBe(0);
+    expect(text.indexOf("This directory has a package.json")).toBeLessThan(
+      text.indexOf("What is your project name?"),
+    );
+    expect(text).not.toContain("Where would you like to place your project?");
+    expect(text).not.toContain("cd ");
+
+    let manifest = JSON.parse(await readFile(join(dir, "package.json"), "utf-8"));
+
+    expect(manifest.name).toBe("@scope/my-lib");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 });
