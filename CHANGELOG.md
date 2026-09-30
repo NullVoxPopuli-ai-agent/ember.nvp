@@ -2,6 +2,17 @@
 
 ## Release (2026-09-30)
 
+* ember.nvp 1.11.2 (patch)
+
+#### :bug: Bug Fix
+* `ember.nvp`
+  * [#150](https://github.com/NullVoxPopuli/ember.nvp/pull/150) Keep the range when bumping a dependency ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### Committers: 1
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+## Release (2026-09-30)
+
 * ember.nvp 1.11.1 (patch)
 
 #### :bug: Bug Fix
