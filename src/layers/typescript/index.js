@@ -37,7 +37,6 @@ export default {
     version: {
       type: "select",
       prompt: "Which TypeScript version?",
-      default: "7",
       options: [
         {
           value: "7",

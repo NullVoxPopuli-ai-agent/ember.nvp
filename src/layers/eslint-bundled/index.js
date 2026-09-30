@@ -52,7 +52,6 @@ export default {
     preset: {
       type: "select",
       prompt: "Which ESLint config?",
-      default: "ember",
       options: [
         {
           value: "ember",
