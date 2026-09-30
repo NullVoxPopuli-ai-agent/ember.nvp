@@ -2,8 +2,8 @@
   "solution": {
     "ember.nvp": {
       "impact": "patch",
-      "oldVersion": "1.11.0",
-      "newVersion": "1.11.1",
+      "oldVersion": "1.11.1",
+      "newVersion": "1.11.2",
       "tagName": "latest",
       "constraints": [
         {
@@ -23,5 +23,5 @@
       "oldVersion": "1.2.0"
     }
   },
-  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.11.1 (patch)\n\n#### :bug: Bug Fix\n* `ember.nvp`\n  * [#148](https://github.com/NullVoxPopuli/ember.nvp/pull/148) Keep update runs working for deprecated and non-registry deps ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
+  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.11.2 (patch)\n\n#### :bug: Bug Fix\n* `ember.nvp`\n  * [#150](https://github.com/NullVoxPopuli/ember.nvp/pull/150) Keep the range when bumping a dependency ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
 }
