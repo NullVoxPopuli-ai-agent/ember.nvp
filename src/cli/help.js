@@ -41,6 +41,7 @@ export function printHelp(coreOptions, layers = []) {
 
   console.log(styleText("bold", "Layer Options:"));
   for (const layer of withOptions) {
+    console.log(`  Layer: ${styleText(["cyan", "bold"], layer.name)}`);
     for (const [key, schema] of Object.entries(layer.options ?? {})) {
       const name = `${layer.name}.${key}`;
 
