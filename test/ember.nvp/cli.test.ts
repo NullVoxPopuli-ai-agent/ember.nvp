@@ -37,8 +37,8 @@ const BASIC_HELP_OUTPUT = `
           --confirm <string>
           Bypass target confirmation step [choices: "yes", "no"]
 
-          --layers <string>
-          Layers to apply to the project (repeat for multiple layers)
+          --layers <string> [--layers <string> ...]
+          Layers to apply to the project [choices: "are-the-types-wrong", "eslint-bundled", "expect-type", "git", "github-actions", "inspector-support", "prettier", "publint", "qunit", "readme", "renovate", "typescript", "vitest"]
 
           --packageManager <string>
           Package manager to configure for the project [choices: "npm", "pnpm"]
@@ -50,11 +50,13 @@ const BASIC_HELP_OUTPUT = `
           Confirm writing changes to disk [choices: "yes", "no"]
 
     Layer Options:
+      Layer: eslint-bundled
           --eslint-bundled.preset <string>
-          Which ESLint config? [choices: "ember", "nvp"] [default: "ember"]
+          Which ESLint config? [choices: "ember", "nvp"]
 
+      Layer: typescript
           --typescript.version <string>
-          Which TypeScript version? [choices: "7", "6"] [default: "7"]
+          Which TypeScript version? [choices: "7", "6"]
     "
   `;
 

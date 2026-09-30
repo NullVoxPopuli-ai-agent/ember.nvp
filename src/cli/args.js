@@ -37,7 +37,7 @@ export const coreOptions = /** @type {const} */ ({
     type: "string",
     multiple: true,
     choices: layerNames,
-    description: "Layers to apply to the project (repeat for multiple layers)",
+    description: "Layers to apply to the project",
   },
 
   packageManager: {

@@ -30,6 +30,7 @@ export function printHelp(coreOptions, layers = []) {
       flag: `--${name}`,
       alias: config.short ? `-${config.short}, ` : "    ",
       type: config.type,
+      multiple: config.multiple,
       description: config.description,
       choices: config.choices,
     });
@@ -49,6 +50,7 @@ export function printHelp(coreOptions, layers = []) {
         flag: schema.type === "confirm" ? `--[no-]${name}` : `--${name}`,
         alias: "    ",
         type: FLAG_TYPES[schema.type],
+        multiple: schema.type === "multiselect",
         description: schema.prompt,
         choices: schema.options?.map((choice) => choice.value),
         fallback: schema.default,
@@ -62,20 +64,27 @@ export function printHelp(coreOptions, layers = []) {
  *   flag: string,
  *   alias: string,
  *   type?: string,
+ *   multiple?: boolean,
  *   description?: string,
  *   choices?: string[],
  *   fallback?: unknown,
  * }} option
  */
-function printOption({ flag, alias, type, description = "", choices, fallback }) {
+function printOption({ flag, alias, type, multiple, description = "", choices, fallback }) {
   const typeStr = type ? styleText("dim", `<${type}>`) : "";
+  const repeatStr = multiple
+    ? type
+      ? ` ${styleText("dim", "[")}${styleText("cyan", flag)} ${typeStr}${styleText("dim", " ...]")}`
+      : ` ${styleText("dim", "[")}${styleText("cyan", flag)}${styleText("dim", " ...]")}`
+    : "";
+  const flagAndType = [styleText("cyan", flag), typeStr].filter(Boolean).join(" ");
   const choicesStr = choices
     ? styleText("yellow", ` [choices: ${choices.map((c) => `"${c}"`).join(", ")}]`)
     : "";
   const fallbackStr =
     fallback === undefined ? "" : styleText("dim", ` [default: ${JSON.stringify(fallback)}]`);
 
-  console.log(`  ${styleText("cyan", alias)}${styleText("cyan", flag)} ${typeStr}`);
+  console.log(`  ${styleText("cyan", alias)}${flagAndType}${repeatStr}`);
   if (description || choicesStr || fallbackStr) {
     console.log(`      ${description}${choicesStr}${fallbackStr}`);
   }
