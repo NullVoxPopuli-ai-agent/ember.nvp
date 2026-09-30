@@ -2,17 +2,13 @@
   "solution": {
     "ember.nvp": {
       "impact": "minor",
-      "oldVersion": "1.9.0",
-      "newVersion": "1.10.0",
+      "oldVersion": "1.10.0",
+      "newVersion": "1.11.0",
       "tagName": "latest",
       "constraints": [
         {
           "impact": "minor",
           "reason": "Appears in changelog section :rocket: Enhancement"
-        },
-        {
-          "impact": "patch",
-          "reason": "Appears in changelog section :bug: Bug Fix"
         }
       ],
       "pkgJSONPath": "./package.json"
@@ -21,25 +17,11 @@
       "oldVersion": "1.2.0"
     },
     "@nullvoxpopuli/ember-rolldown": {
-      "impact": "minor",
-      "oldVersion": "2.9.0",
-      "newVersion": "2.10.0",
-      "tagName": "latest",
-      "constraints": [
-        {
-          "impact": "minor",
-          "reason": "Appears in changelog section :rocket: Enhancement"
-        },
-        {
-          "impact": "patch",
-          "reason": "Appears in changelog section :bug: Bug Fix"
-        }
-      ],
-      "pkgJSONPath": "./packages/rolldown/package.json"
+      "oldVersion": "2.10.0"
     },
     "@nullvoxpopuli/ember-vite": {
       "oldVersion": "1.2.0"
     }
   },
-  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.10.0 (minor)\n* @nullvoxpopuli/ember-rolldown 2.10.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`, `@nullvoxpopuli/ember-rolldown`\n  * [#144](https://github.com/NullVoxPopuli/ember.nvp/pull/144) Layer options, with an ESLint preset and a TypeScript version ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n  * [#142](https://github.com/NullVoxPopuli/ember.nvp/pull/142) Add a TypeScript 7.1+ layer ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n* `@nullvoxpopuli/ember-rolldown`, `ember.nvp`\n  * [#140](https://github.com/NullVoxPopuli/ember.nvp/pull/140) Point .gts declaration maps at the .gts source ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### :bug: Bug Fix\n* `@nullvoxpopuli/ember-rolldown`, `ember.nvp`\n  * [#145](https://github.com/NullVoxPopuli/ember.nvp/pull/145) Make .gts source maps point at the real source ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n  * [#140](https://github.com/NullVoxPopuli/ember.nvp/pull/140) Point .gts declaration maps at the .gts source ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n\n#### Committers: 1\n- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))\n"
+  "description": "## Release (2026-09-30)\n\n* ember.nvp 1.11.0 (minor)\n\n#### :rocket: Enhancement\n* `ember.nvp`\n  * [#146](https://github.com/NullVoxPopuli/ember.nvp/pull/146) Better help ([@tcjr](https://github.com/tcjr))\n\n#### Committers: 1\n- Tom Carter ([@tcjr](https://github.com/tcjr))\n"
 }
