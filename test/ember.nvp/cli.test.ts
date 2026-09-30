@@ -154,14 +154,15 @@ test("cli exits on an invalid layer option flag, before writing anything", async
   }
 });
 
-test("in a project directory, asks to update first and fills in the project's name", async () => {
+test("in a project directory, asks to update first and defaults to the project's name and type", async () => {
   let dir = await mktemp("cli-update-here");
-  await writeFile(join(dir, "package.json"), JSON.stringify({ name: "@scope/my-lib" }));
+  await writeFile(
+    join(dir, "package.json"),
+    JSON.stringify({ name: "@scope/my-lib", "ember-addon": { version: 2, type: "addon" } }),
+  );
 
-  // No --name or --path, so the CLI asks about the project in this directory
+  // No --name, --path, or --type, so the CLI asks about the project in this directory
   let args = [
-    "--type",
-    "library",
     "--layers",
     "prettier",
     "--packageManager",
@@ -171,7 +172,11 @@ test("in a project directory, asks to update first and fills in the project's na
     "--write",
     "yes",
   ];
-  let prompts = ["This directory has a package.json", "What is your project name?"];
+  let prompts = [
+    "This directory has a package.json",
+    "What is your project name?",
+    "Which type of project?",
+  ];
 
   try {
     let { execaPromise } = cli(args, { cwd: dir });
@@ -180,7 +185,7 @@ test("in a project directory, asks to update first and fills in the project's na
     execaPromise.stdout?.on("data", (chunk) => {
       output += chunk;
 
-      // Enter keeps the answer each prompt starts with: "update", then the name
+      // Enter keeps the answer each prompt starts with: "update", the name, then the type
       if (prompts[0] && stripVTControlCharacters(output).includes(prompts[0])) {
         prompts.shift();
         execaPromise.stdin?.write("\r");
@@ -195,6 +200,8 @@ test("in a project directory, asks to update first and fills in the project's na
       text.indexOf("What is your project name?"),
     );
     expect(text).not.toContain("Where would you like to place your project?");
+    expect(text).toMatch(/Which type of project\?\n│  library\n/);
+    expect(existsSync(join(dir, "tsdown.config.js")), "the library base ran").toBe(true);
     expect(text).not.toContain("cd ");
 
     let manifest = JSON.parse(await readFile(join(dir, "package.json"), "utf-8"));
