@@ -116,23 +116,26 @@ describe.each(Object.entries(CONFIG_PACKAGES))("preset: %s", (preset, configPack
   });
 });
 
-describe("switching presets", () => {
+describe.each([
+  ["ember", "nvp"],
+  ["nvp", "ember"],
+] as const)("switching presets: %s to %s", (from, to) => {
   let project: Project;
 
   beforeAll(async () => {
-    project = await generate({
+    let before = await generate({
       type: "app",
       packageManager: "pnpm",
       layers: ["eslint-bundled", "git"],
-      options: { "eslint-bundled": { preset: "ember" } },
+      options: { "eslint-bundled": { preset: from } },
     });
 
-    await generate({
-      directory: project.directory,
+    project = await generate({
+      directory: before.directory,
       type: "app",
       packageManager: "pnpm",
       layers: ["eslint-bundled", "git"],
-      options: { "eslint-bundled": { preset: "nvp" } },
+      options: { "eslint-bundled": { preset: to } },
     });
   });
 
@@ -143,8 +146,37 @@ describe("switching presets", () => {
   it("replaces the config package and the config", async () => {
     let manifest = await packageJson.read(project.directory);
 
-    expect(manifest.devDependencies).toHaveProperty("@nullvoxpopuli/eslint-configs");
-    expect(manifest.devDependencies).not.toHaveProperty("ember-eslint");
-    expect(await project.read("eslint.config.js")).toContain("@nullvoxpopuli/eslint-configs");
+    expect(manifest.devDependencies).toHaveProperty(CONFIG_PACKAGES[to]);
+    expect(manifest.devDependencies).not.toHaveProperty(CONFIG_PACKAGES[from]);
+    expect(await project.read("eslint.config.js")).toContain(CONFIG_PACKAGES[to]);
+    expect(await project.read("eslint.config.js")).not.toContain(CONFIG_PACKAGES[from]);
+  });
+
+  it("is setup, and detects the new preset", async () => {
+    await expectIsSetup(project, layer);
+    expect(await layer.options?.preset?.detect?.(project)).toBe(to);
+  });
+
+  it("reapplying causes no changes", async () => {
+    await reapply(project, ["eslint-bundled", "git"]);
+
+    expect(await project.gitHasDiff()).toBe(false);
+  });
+
+  it("linting and fixing works", async () => {
+    let install = await project.run("pnpm install");
+    hardExpect(install.exitCode).toBe(0);
+
+    {
+      let { exitCode } = await project.run("pnpm lint:eslint --fix");
+
+      expect(exitCode).toBe(0);
+    }
+
+    {
+      let { exitCode } = await project.run("pnpm lint:eslint");
+
+      expect(exitCode).toBe(0);
+    }
   });
 });

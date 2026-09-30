@@ -1,5 +1,9 @@
 import { test, expect as hardExpect } from "vitest";
-import { cli } from "#test-helpers";
+import { cli, mktemp } from "#test-helpers";
+import { packageJson } from "ember-apply";
+import { existsSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 
 const expect = hardExpect.soft;
@@ -83,4 +87,67 @@ test("cli prints a message, not a stack trace, for an unknown flag", async () =>
   const outStr = stripVTControlCharacters(`${res.stdout}\n${res.stderr}`);
   expect(outStr).toContain("Unknown option '--bogus'");
   expect(outStr).not.toContain("TypeError");
+});
+
+/**
+ * Every question has a flag, so nothing prompts.
+ * The path does not exist yet, so there is no replace-or-update question either.
+ */
+async function eslintProjectArgs(preset: string) {
+  let parent = await mktemp("cli-layer-options");
+  let path = join(parent, "my-app");
+
+  return {
+    parent,
+    path,
+    args: [
+      "--name",
+      "my-app",
+      "--path",
+      path,
+      "--type",
+      "app",
+      "--layers",
+      "eslint-bundled",
+      "--packageManager",
+      "pnpm",
+      "--confirm",
+      "yes",
+      "--eslint-bundled.preset",
+      preset,
+    ],
+  };
+}
+
+test("cli applies a layer option flag", async () => {
+  let { parent, path, args } = await eslintProjectArgs("nvp");
+
+  try {
+    let res = await cli(args).execaPromise;
+
+    expect(res.exitCode).toBe(0);
+
+    let manifest = await packageJson.read(path);
+
+    expect(manifest.devDependencies).toHaveProperty("@nullvoxpopuli/eslint-configs");
+    expect(manifest.devDependencies).not.toHaveProperty("ember-eslint");
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("cli exits on an invalid layer option flag, before writing anything", async () => {
+  let { parent, path, args } = await eslintProjectArgs("bogus");
+
+  try {
+    const res = await cli(args).execaPromise.catch((error) => error);
+
+    expect(res.exitCode).toBe(1);
+    expect(stripVTControlCharacters(res.stdout)).toContain(
+      "Invalid CLI argument '--eslint-bundled.preset': Invalid option 'bogus'. Must be one of: ember, nvp",
+    );
+    expect(existsSync(path)).toBe(false);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
 });

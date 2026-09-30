@@ -139,7 +139,66 @@ describe("layer: typescript, version 7", () => {
     });
   });
 
-  describe("migrating a TypeScript 6 app", () => {
+  describe.each(["app", "library"] as const)(
+    "migrating a TypeScript 6 %s without eslint",
+    (type) => {
+      let project: Project;
+
+      beforeAll(async () => {
+        let layers = ["typescript", "git"];
+        let before = await generate({
+          type,
+          layers,
+          options: { typescript: { version: "6" } },
+        });
+        dirs.push(before.directory);
+
+        expect(await devDependencies(before)).toHaveProperty("typescript");
+
+        project = await generate({
+          directory: before.directory,
+          type,
+          layers,
+          options: { typescript: { version: "7" } },
+        });
+      });
+
+      it("is setup, and detects version 7", async () => {
+        await expectIsSetup(project, typescript);
+        expect(await typescript.options?.version?.detect?.(project)).toBe("7");
+      });
+
+      it("removes typescript and the tsserver plugin, because nothing needs TypeScript 6", async () => {
+        let manifest = await packageJson.read(project.directory);
+
+        expect(manifest.scripts?.["lint:types"]).toBe("tsc --noEmit --runExternalCode");
+        expect(manifest.devDependencies?.["@typescript/native"]).toMatch(/^npm:typescript@7\./);
+        expect(manifest.devDependencies).not.toHaveProperty("typescript");
+        expect(manifest.devDependencies).not.toHaveProperty("@glint/tsserver-plugin");
+      });
+
+      it("reapplying causes no changes", async () => {
+        await reapply(project, ["typescript", "git"]);
+
+        expect(await project.gitHasDiff()).toBe(false);
+      });
+
+      it("type checking and the build work", async () => {
+        if (type === "library") await writeLibrarySource(project, "typescript");
+
+        let install = await run(project, "pnpm install");
+        expect(install.exitCode, install.all).toBe(0);
+
+        let types = await run(project, "pnpm lint:types");
+        expect(types.exitCode, types.all).toBe(0);
+
+        let build = await run(project, "pnpm build");
+        expect(build.exitCode, build.all).toBe(0);
+      });
+    },
+  );
+
+  describe("migrating a TypeScript 6 app with eslint", () => {
     let project: Project;
 
     beforeAll(async () => {
