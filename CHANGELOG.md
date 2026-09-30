@@ -2,6 +2,17 @@
 
 ## Release (2026-09-30)
 
+* ember.nvp 1.11.0 (minor)
+
+#### :rocket: Enhancement
+* `ember.nvp`
+  * [#146](https://github.com/NullVoxPopuli/ember.nvp/pull/146) Better help ([@tcjr](https://github.com/tcjr))
+
+#### Committers: 1
+- Tom Carter ([@tcjr](https://github.com/tcjr))
+
+## Release (2026-09-30)
+
 * ember.nvp 1.10.0 (minor)
 * @nullvoxpopuli/ember-rolldown 2.10.0 (minor)
 
