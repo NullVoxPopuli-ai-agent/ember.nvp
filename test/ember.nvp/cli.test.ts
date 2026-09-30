@@ -52,11 +52,11 @@ const BASIC_HELP_OUTPUT = `
     Layer Options:
       Layer: eslint-bundled
           --eslint-bundled.preset <string>
-          Which ESLint config? [choices: "ember", "nvp"]
+          Which ESLint config? [choices: "ember", "nvp"] [default: "ember"]
 
       Layer: typescript
           --typescript.version <string>
-          Which TypeScript version? [choices: "7", "6"]
+          Which TypeScript version? [choices: "7", "6"] [default: "7"]
     "
   `;
 
