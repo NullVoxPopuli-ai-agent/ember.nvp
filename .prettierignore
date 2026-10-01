@@ -1,3 +1,7 @@
 pnpm-lock.yaml
 CHANGELOG.md
 dist
+# copies of upstream blueprint files, compared byte for byte
+src/migration-from/**/blueprint/
+# copies of blueprint output, in the upstream style
+test/fixtures/
