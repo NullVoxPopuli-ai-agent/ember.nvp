@@ -1,21 +1,11 @@
-import packageJson from "package-json";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import semver from "semver";
+import { existsSync, globSync } from "node:fs";
+import { join, sep } from "node:path";
 import { readJSON } from "#utils/fs.js";
 
 /**
  * @typedef {object} Dependency
  * @property {string} name
  * @property {Record<string, any>} manifest
- * @property {string | undefined} directory where it is installed, when it is
- */
-
-/**
- * @typedef {object} V1Addon
- * @property {string} name
- * @property {string} version the version that the project uses
- * @property {string} [v2] the newest version, when that version is a v2 addon
  */
 
 /**
@@ -38,164 +28,53 @@ export function isV1Addon(manifest) {
 }
 
 /**
- * Where a dependency is installed.
+ * The manifests of the dependencies that are installed in the project.
  *
- * Looks in `node_modules` of `directory` and of every parent, like Node does,
- * so that hoisted monorepo installs are found.
+ * A migration decides from the project's own files.
+ * An install is extra: when there is one, it tells which dependencies are v1 addons,
+ * and which modules the addons add to an app.
  *
- * @param {string} directory
- * @param {string} name
- * @returns {string | undefined}
+ * Only the top level of node_modules is read.
+ * Every package manager puts a project's direct dependencies there.
+ *
+ * @param {string} directory the project
+ * @param {Record<string, string>} dependencies the dependencies to look for, by name
+ * @returns {Dependency[]} empty when the project has no node_modules
  */
-export function installedDirectory(directory, name) {
-  let current = directory;
+export function installedDependencies(directory, dependencies) {
+  let modules = join(directory, "node_modules");
 
-  while (true) {
-    let candidate = join(current, "node_modules", name);
+  if (!existsSync(modules)) return [];
 
-    if (existsSync(join(candidate, "package.json"))) return candidate;
-
-    let parent = dirname(current);
-
-    if (parent === current) return;
-
-    current = parent;
-  }
-}
-
-/**
- * One request per package and range, for the whole process.
- * A CLI run checks the project before and during generation.
- *
- * @type {Map<string, Promise<Record<string, any> | undefined>>}
- */
-const REGISTRY = new Map();
-
-/**
- * @param {string} name
- * @param {string} range
- * @returns {Promise<Record<string, any> | undefined>} undefined when the registry has no match
- */
-function registryManifest(name, range) {
-  let key = `${name}@${range}`;
-  let existing = REGISTRY.get(key);
-
-  if (existing) return existing;
-
-  // a range can cover only deprecated versions, such as all of ESLint 9
-  let request = packageJson(name, {
-    version: range,
-    fullMetadata: true,
-    omitDeprecated: false,
-  }).then(
-    (manifest) => /** @type {Record<string, any>} */ (manifest),
-    () => undefined,
-  );
-
-  REGISTRY.set(key, request);
-
-  return request;
-}
-
-/**
- * An npm alias installs another package under this name:
- *
- *   "ember-source": "npm:ember-source@~6.4.0"
- *
- * @param {string} name
- * @param {string} range
- * @returns {{ name: string, range: string } | undefined} undefined when the registry cannot answer
- */
-function registryQuery(name, range) {
-  if (range.startsWith("npm:")) {
-    let spec = range.slice("npm:".length);
-    let at = spec.lastIndexOf("@");
-
-    return at <= 0
-      ? { name: spec, range: "latest" }
-      : { name: spec.slice(0, at), range: spec.slice(at + 1) };
-  }
-
-  if (semver.validRange(range) || /^[a-z][\w.-]*$/i.test(range)) {
-    return { name, range };
-  }
-}
-
-/**
- * Reads the manifest of each dependency.
- *
- * The installed version wins, because it is the one the project builds with.
- * Without an install, the registry answers for the declared range.
- *
- * @param {string} installDirectory where the project's node_modules can be
- * @param {Record<string, string>} dependencies name → range
- * @returns {Promise<{ found: Dependency[], unchecked: string[] }>}
- *   `unchecked` lists dependencies that are not installed and not on the registry
- */
-export async function readDependencies(installDirectory, dependencies) {
   /** @type {Dependency[]} */
   let found = [];
-  /** @type {string[]} */
-  let unchecked = [];
 
-  await Promise.all(
-    Object.entries(dependencies).map(async ([name, range]) => {
-      let directory = installedDirectory(installDirectory, name);
-      let manifest = directory ? readJSON(join(directory, "package.json")) : undefined;
+  for (let folder of globSync(["*", "@*/*"], { cwd: modules })) {
+    let name = folder.split(sep).join("/");
 
-      if (!manifest) {
-        let query = registryQuery(name, range);
+    if (!(name in dependencies)) continue;
 
-        manifest = query && (await registryManifest(query.name, query.range));
-      }
+    let manifest = readJSON(join(modules, folder, "package.json"));
 
-      if (!manifest) {
-        unchecked.push(name);
-        return;
-      }
+    if (manifest) found.push({ name, manifest });
+  }
 
-      found.push({ name, manifest, directory });
-    }),
-  );
-
-  found.sort((a, b) => a.name.localeCompare(b.name));
-  unchecked.sort();
-
-  return { found, unchecked };
+  return found.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
  * @param {Dependency[]} dependencies
- * @returns {Promise<V1Addon[]>}
+ * @returns {string[]} such as `ember-power-select@6.0.1`
  */
-export async function v1AddonsIn(dependencies) {
-  /** @type {V1Addon[]} */
+export function v1AddonsIn(dependencies) {
+  /** @type {string[]} */
   let v1 = [];
 
-  await Promise.all(
-    dependencies.map(async ({ name, manifest }) => {
-      if (!isV1Addon(manifest)) return;
-
-      let latest = await registryManifest(name, "latest");
-      let v2 = latest && !isV1Addon(latest) ? latest.version : undefined;
-
-      v1.push({ name, version: manifest.version, v2 });
-    }),
-  );
-
-  return v1.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-/**
- * @param {V1Addon} addon
- * @returns {string} such as `ember-power-select@6.0.1: upgrade to 8.9.0, a v2 addon`
- */
-export function describeV1Addon(addon) {
-  if (addon.v2) {
-    return `${addon.name}@${addon.version}: upgrade to ${addon.v2}, a v2 addon`;
+  for (let { name, manifest } of dependencies) {
+    if (isV1Addon(manifest)) v1.push(`${name}@${manifest.version}`);
   }
 
-  return `${addon.name}@${addon.version}: no v2 version on npm`;
+  return v1;
 }
 
 /**
@@ -218,34 +97,19 @@ export function appModulesIn(dependencies) {
   /** @type {AppModule[]} */
   let modules = [];
 
-  for (let { name, manifest, directory } of dependencies) {
+  for (let { name, manifest } of dependencies) {
     let appJs = manifest["ember-addon"]?.["app-js"] ?? {};
 
     for (let [appPath, file] of Object.entries(appJs)) {
-      let target = String(file);
-      let installed = directory ? reexportedFrom(join(directory, target)) : undefined;
-
       modules.push({
         addon: name,
         path: appPath.replace(/^\.\//, "").replace(/\.\w+$/, ""),
-        specifier: installed ?? exportedAs(name, manifest, target),
+        specifier: exportedAs(name, manifest, String(file)),
       });
     }
   }
 
   return modules;
-}
-
-/**
- * @param {string} file an app-js module, such as `export { default } from "ember-page-title/services/page-title";`
- * @returns {string | undefined}
- */
-function reexportedFrom(file) {
-  if (!existsSync(file)) return;
-
-  let match = /from\s+["']([^"']+)["']/.exec(readFileSync(file, "utf-8"));
-
-  return match?.[1];
 }
 
 /**

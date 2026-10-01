@@ -5,13 +5,7 @@ import { join } from "node:path";
 import semver from "semver";
 import { readJSON } from "#utils/fs.js";
 import { getLatest } from "#utils/npm.js";
-import {
-  appModulesIn,
-  describeV1Addon,
-  installedDirectory,
-  readDependencies,
-  v1AddonsIn,
-} from "./addons.js";
+import { appModulesIn, installedDependencies, v1AddonsIn } from "./addons.js";
 import { readBabelConfig } from "./babel.js";
 import {
   EMBER_CLI_BUILD,
@@ -185,7 +179,7 @@ export async function checkApp(project) {
   /** @type {Record<string, string>} */
   let dependencies = { ...manifest.dependencies, ...manifest.devDependencies };
 
-  checkEmberSource(project, dependencies, report);
+  checkEmberSource(dependencies, report);
 
   let removed = removedDependencies(root);
   /** @type {Record<string, string>} */
@@ -197,25 +191,15 @@ export async function checkApp(project) {
     if (!removed.has(name)) toCheck[name] = range;
   }
 
-  let { found, unchecked } = await readDependencies(project.desires.path, toCheck);
-  let v1 = await v1AddonsIn(found);
+  let v1 = v1AddonsIn(installedDependencies(project.desires.path, toCheck));
 
   if (v1.length > 0) {
     report.unsupported.push({
       title: "v1 addons",
-      where: v1.map(describeV1Addon),
+      where: v1,
       action:
         "Upgrade each addon to a v2 version, or remove it.\n" +
         "ember.nvp builds without ember-cli, so v1 addons do not load.",
-    });
-  }
-
-  if (unchecked.length > 0) {
-    report.todo.push({
-      title: "Dependencies that ember.nvp could not check",
-      where: unchecked,
-      action:
-        "Make sure that none of these is a v1 addon. v1 addons do not load without ember-cli.",
     });
   }
 
@@ -318,7 +302,7 @@ export async function checkApp(project) {
     });
   }
 
-  let appModules = appModulesIn(found);
+  let appModules = addonModules(project, toCheck);
   let initializers = appModules.filter((module) => /^(instance-)?initializers\//.test(module.path));
 
   if (initializers.length > 0) {
@@ -333,13 +317,14 @@ export async function checkApp(project) {
 
   let unregistered = addonServices(root, appModules).filter((module) => !module.specifier);
 
-  if (unregistered.length > 0) {
+  if (unregistered.length > 0 || !hasInstall(project)) {
     report.todo.push({
       title: "Services from addons",
       where: unregistered.map((module) => `${module.addon}: ${module.path}`),
       action:
-        "Register each service that the app injects, in `modules` in app/app.ts:\n" +
-        `  "./services/name": ServiceFromTheAddon,`,
+        "Register each addon service that the app injects, in `modules` in app/app.ts:\n" +
+        `  "./services/name": ServiceFromTheAddon,` +
+        (hasInstall(project) ? "" : "\nember.nvp lists them when the project has node_modules."),
     });
   }
 
@@ -410,6 +395,40 @@ function customTestHelper(root) {
 }
 
 /**
+ * Modules of the addons that the blueprints add to every app.
+ * Without an install, these are the only addon modules that the migration knows.
+ *
+ * @type {import('./addons.js').AppModule[]}
+ */
+const BLUEPRINT_ADDON_MODULES = [
+  {
+    addon: "ember-page-title",
+    path: "services/page-title",
+    specifier: "ember-page-title/services/page-title",
+  },
+];
+
+/**
+ * @param {Project} project
+ */
+function hasInstall(project) {
+  return existsSync(join(project.desires.path, "node_modules"));
+}
+
+/**
+ * @param {Project} project
+ * @param {Record<string, string>} dependencies
+ * @returns {import('./addons.js').AppModule[]} the modules that the app's addons merge into it
+ */
+function addonModules(project, dependencies) {
+  if (hasInstall(project)) {
+    return appModulesIn(installedDependencies(project.desires.path, dependencies));
+  }
+
+  return BLUEPRINT_ADDON_MODULES.filter((module) => module.addon in dependencies);
+}
+
+/**
  * @param {string} root
  * @param {import('./addons.js').AppModule[]} modules
  * @returns {import('./addons.js').AppModule[]} the services from addons that the app does not define itself
@@ -423,17 +442,12 @@ function addonServices(root, modules) {
 }
 
 /**
- * @param {Project} project
  * @param {Record<string, string>} dependencies
  * @param {MigrationReport} report
  */
-function checkEmberSource(project, dependencies, report) {
-  let directory = installedDirectory(project.desires.path, "ember-source");
-  let installed = directory ? readJSON(join(directory, "package.json"))?.version : undefined;
+function checkEmberSource(dependencies, report) {
   let range = dependencies["ember-source"];
-  let version =
-    installed ??
-    (range && semver.validRange(range) ? semver.minVersion(range)?.version : undefined);
+  let version = range && semver.validRange(range) ? semver.minVersion(range)?.version : undefined;
 
   if (!version || semver.gte(version, MINIMUM_EMBER_SOURCE)) return;
 
@@ -539,7 +553,7 @@ export async function migrateApp(project, report, { indexHtml }) {
   let typescript = await project.hasOrWantsLayer("typescript");
   let buildFile = firstExisting(root, EMBER_CLI_BUILD);
   let build = buildFile ? readEmberCliBuild(root, buildFile) : undefined;
-  let { found } = await readDependencies(project.desires.path, {
+  let appModules = addonModules(project, {
     ...manifest.dependencies,
     ...manifest.devDependencies,
   });
@@ -562,7 +576,7 @@ export async function migrateApp(project, report, { indexHtml }) {
 
   await writeAppModule(project, report, {
     typescript,
-    services: addonServices(root, appModulesIn(found)).filter((module) => module.specifier),
+    services: addonServices(root, appModules).filter((module) => module.specifier),
     initializers,
   });
 

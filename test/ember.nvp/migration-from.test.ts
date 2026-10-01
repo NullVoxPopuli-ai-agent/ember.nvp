@@ -211,6 +211,60 @@ describe("@ember/app-blueprint", () => {
     expect(existsSync(join(dir, "ember-cli-build.mjs"))).toBe(true);
   });
 
+  it("reads the top level of node_modules, when there is one", async () => {
+    let dir = await fixture("app-blueprint", {
+      "node_modules/ember-cli-mirage/package.json": JSON.stringify({
+        name: "ember-cli-mirage",
+        version: "3.0.4",
+        keywords: ["ember-addon"],
+      }),
+      // installed, but not a dependency of the app
+      "node_modules/ember-fetch/package.json": JSON.stringify({
+        name: "ember-fetch",
+        version: "8.1.2",
+        keywords: ["ember-addon"],
+      }),
+      "node_modules/@acme/session/package.json": JSON.stringify({
+        name: "@acme/session",
+        version: "1.0.0",
+        keywords: ["ember-addon"],
+        exports: { "./*": "./dist/*.js" },
+        "ember-addon": {
+          version: 2,
+          "app-js": { "./services/session.js": "./dist/_app_/services/session.js" },
+        },
+      }),
+    });
+
+    await packageJson.addDevDependencies({ "@acme/session": "link:../session" }, dir);
+
+    let project = new Project(dir, {
+      name: "my-app",
+      type: "app",
+      path: dir,
+      layers: [],
+      packageManager: "pnpm",
+    });
+
+    expect((await checkMigration(project))?.report.unsupported).toEqual([]);
+
+    await packageJson.addDevDependencies({ "ember-cli-mirage": "^3.0.0" }, dir);
+
+    let report = (await checkMigration(project))?.report;
+
+    expect(report?.unsupported.map((finding) => finding.where)).toEqual([
+      ["ember-cli-mirage@3.0.4"],
+    ]);
+
+    await packageJson.removeDevDependencies(["ember-cli-mirage"], dir);
+    await migrate(dir, "app", ["typescript"]);
+
+    let app = await read(dir, "app/app.ts");
+
+    expect(app).toContain(`import SessionService from "@acme/session/_app_/services/session";`);
+    expect(app).toContain(`"./services/session": SessionService,`);
+  });
+
   it("stops at an ember-source older than 7.2", async () => {
     let dir = await fixture("app-blueprint");
 

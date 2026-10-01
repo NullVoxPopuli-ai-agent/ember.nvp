@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { readJSON } from "#utils/fs.js";
-import { describeV1Addon, readDependencies, v1AddonsIn } from "../../addons.js";
+import { installedDependencies, v1AddonsIn } from "../../addons.js";
 import { beyondEmberRolldown, readBabelConfig } from "../../babel.js";
 import { filesWithExtension, firstExisting, listFiles, remove } from "../../files.js";
 import { changedTestemFlags, removeToolingOfWantedLayers } from "../../layers.js";
@@ -169,27 +169,14 @@ export default {
       });
     }
 
-    let { found, unchecked } = await readDependencies(
-      project.desires.path,
-      manifest.dependencies ?? {},
-    );
-    let v1 = await v1AddonsIn(found);
+    let v1 = v1AddonsIn(installedDependencies(project.desires.path, manifest.dependencies ?? {}));
 
     if (v1.length > 0) {
       report.unsupported.push({
         title: "v1 addons in dependencies",
-        where: v1.map(describeV1Addon),
+        where: v1,
         action:
           "Upgrade each addon to a v2 version, or remove it.\nApps without ember-cli cannot load v1 addons.",
-      });
-    }
-
-    if (unchecked.length > 0) {
-      report.todo.push({
-        title: "Dependencies that ember.nvp could not check",
-        where: unchecked,
-        action:
-          "Make sure that none of these is a v1 addon. Apps without ember-cli cannot load v1 addons.",
       });
     }
 

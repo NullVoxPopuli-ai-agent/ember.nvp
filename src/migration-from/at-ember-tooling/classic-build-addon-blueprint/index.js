@@ -5,7 +5,7 @@ import { dirname, join, relative } from "node:path";
 import { readJSON } from "#utils/fs.js";
 import { getLatest } from "#utils/npm.js";
 import { rewriteImportsToMatchFiles } from "#utils/rewrite-imports.js";
-import { describeV1Addon, readDependencies, v1AddonsIn } from "../../addons.js";
+import { installedDependencies, v1AddonsIn } from "../../addons.js";
 import { TOOLCHAIN } from "../../app.js";
 import {
   filesWithExtension,
@@ -159,24 +159,14 @@ export default {
       if (!TOOLCHAIN.has(name)) dependencies[name] = String(range);
     }
 
-    let { found, unchecked } = await readDependencies(project.desires.path, dependencies);
-    let v1 = await v1AddonsIn(found);
+    let v1 = v1AddonsIn(installedDependencies(project.desires.path, dependencies));
 
     if (v1.length > 0) {
       report.unsupported.push({
         title: "v1 addons in dependencies",
-        where: v1.map(describeV1Addon),
+        where: v1,
         action:
           "Upgrade each addon to a v2 version, or remove it.\nApps without ember-cli cannot load v1 addons.",
-      });
-    }
-
-    if (unchecked.length > 0) {
-      report.todo.push({
-        title: "Dependencies that ember.nvp could not check",
-        where: unchecked,
-        action:
-          "Make sure that none of these is a v1 addon. Apps without ember-cli cannot load v1 addons.",
       });
     }
 
