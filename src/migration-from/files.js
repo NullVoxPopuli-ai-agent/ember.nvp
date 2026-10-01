@@ -118,26 +118,3 @@ export async function move(project, from, to) {
   await mkdir(dirname(project.path(to)), { recursive: true });
   await rename(project.path(from), project.path(to));
 }
-
-/**
- * Whether a file has the same contents as one of the blueprint's own,
- * ignoring whitespace differences.
- *
- * @param {string} root the project directory
- * @param {string} file relative to `root`
- * @param {string} blueprintContents
- */
-export function matchesBlueprint(root, file, blueprintContents) {
-  let path = join(root, file);
-
-  if (!existsSync(path)) return false;
-
-  return normalize(readFileSync(path, "utf-8")) === normalize(blueprintContents);
-}
-
-/**
- * @param {string} contents
- */
-function normalize(contents) {
-  return contents.replace(/\s+/g, " ").trim();
-}

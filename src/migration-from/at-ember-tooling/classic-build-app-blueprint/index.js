@@ -3,26 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkApp, migrateApp } from "../../app.js";
 import { EMBER_CLI_BUILD } from "../../ember-cli-build.js";
-import { firstExisting, listFiles, matchesBlueprint, remove } from "../../files.js";
-
-/**
- * The classic addon blueprint takes its testem.js from the app blueprint too
- */
-export const BLUEPRINT_TESTEM = readFileSync(
-  join(import.meta.dirname, "blueprint/testem.js"),
-  "utf-8",
-);
-
-/**
- * @type {import('#types').Finding}
- */
-export const CUSTOM_TESTEM = {
-  title: "testem.js settings of your own",
-  where: ["testem.js"],
-  action:
-    "Copy the settings that you still need, such as browser flags, to the qunit layer's testem config.\n" +
-    "testem.js runs only through ember-cli, so the migration removes it.",
-};
+import { firstExisting, listFiles, remove } from "../../files.js";
+import { changedTestemFlags } from "../../layers.js";
 
 /**
  * Compiler options of the blueprint's tsconfig.json.
@@ -77,12 +59,9 @@ export default {
       });
     }
 
-    if (
-      existsSync(join(root, "testem.js")) &&
-      !matchesBlueprint(root, "testem.js", BLUEPRINT_TESTEM)
-    ) {
-      report.todo.push(CUSTOM_TESTEM);
-    }
+    let testem = changedTestemFlags(root, "testem.js", "app");
+
+    if (testem) report.todo.push(testem);
 
     let config = await blueprintTsconfig(root);
     let custom = Object.keys(config?.compilerOptions ?? {}).filter(

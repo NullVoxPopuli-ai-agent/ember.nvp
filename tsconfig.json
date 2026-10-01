@@ -12,8 +12,6 @@
     "src/**/layers/*/files/**",
     "src/**/layers/*/library-files/**",
     "src/**/bases/*/files/**",
-    "src/migration-from/**/blueprint/**",
-    "test/fixtures/**",
     "my-app"
   ]
 }

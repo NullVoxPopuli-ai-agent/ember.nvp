@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { existsSync } from "node:fs";
-import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { rm } from "node:fs/promises";
 import { stripVTControlCharacters } from "node:util";
@@ -9,11 +9,19 @@ import { checkMigration, detectMigration, formatFindings, MigrationError } from 
 import { Project } from "#utils/project.js";
 import { cli, generate, mktemp } from "#test-helpers";
 import type { ProjectType } from "#types";
+import {
+  addonBlueprint,
+  appBlueprint,
+  classicAddon,
+  classicApp,
+} from "./migration-from-fixtures.ts";
 
-/**
- * The output of each blueprint, as `ember new` / `ember addon` made it.
- */
-const FIXTURES = join(import.meta.dirname, "../fixtures/migration-from");
+const FIXTURES = {
+  "addon-blueprint": addonBlueprint,
+  "app-blueprint": appBlueprint,
+  "classic-build-app-blueprint": classicApp,
+  "classic-build-addon-blueprint": classicAddon,
+};
 
 const dirs: string[] = [];
 
@@ -25,13 +33,11 @@ afterAll(async () => {
   }
 });
 
-async function fixture(name: string, files: Record<string, string> = {}) {
+async function fixture(name: keyof typeof FIXTURES, files: Record<string, string> = {}) {
   let dir = await mktemp(`migration-from-${name}`);
   dirs.push(dir);
 
-  await cp(join(FIXTURES, name), dir, { recursive: true });
-
-  for (let [file, contents] of Object.entries(files)) {
+  for (let [file, contents] of Object.entries({ ...FIXTURES[name], ...files })) {
     await mkdir(dirname(join(dir, file)), { recursive: true });
     await writeFile(join(dir, file), contents);
   }
@@ -74,7 +80,9 @@ describe("detectMigration", () => {
 
   for (let [name, label] of Object.entries(cases)) {
     it(`detects ${label}`, async () => {
-      expect(detectMigration(join(FIXTURES, name))?.label).toBe(label);
+      let dir = await fixture(name as keyof typeof FIXTURES);
+
+      expect(detectMigration(dir)?.label).toBe(label);
     });
   }
 
@@ -100,8 +108,9 @@ describe("@ember/addon-blueprint", () => {
       "babel.publish.config.cjs",
       "tsconfig.publish.json",
       "testem.cjs",
-      "demo-app/app.gts",
-      "config/ember-cli-update.json",
+      "index.html",
+      "demo-app",
+      "unpublished-development-types",
     ]) {
       expect(existsSync(join(dir, file)), file).toBe(false);
     }
@@ -227,6 +236,7 @@ describe("@ember-tooling/classic-build-app-blueprint", () => {
 
     expect(html).not.toContain("{{");
     expect(html).not.toContain("assets/vendor");
+    expect(html).toContain(`<link rel="icon" href="/assets/favicon.png">`);
     expect(html).toContain(`import Application from "#app/app";`);
 
     expect(await read(dir, "tsconfig.json")).toContain("@ember/app-tsconfig");
@@ -235,6 +245,32 @@ describe("@ember-tooling/classic-build-app-blueprint", () => {
 
     expect(manifest.devDependencies).not.toHaveProperty("ember-cli-app-version");
     expect(manifest.devDependencies).not.toHaveProperty("@tsconfig/ember");
+  });
+});
+
+describe("testem configs", () => {
+  it("lists browser flags that differ from the new testem config", async () => {
+    let dir = await fixture("classic-build-app-blueprint", {
+      "testem.js": classicApp["testem.js"]!.replace(
+        "'--disable-software-rasterizer',",
+        "'--use-gl=angle',",
+      ),
+    });
+    let project = new Project(dir, {
+      name: "my-classic-app",
+      type: "app",
+      path: dir,
+      layers: [],
+      packageManager: "pnpm",
+    });
+
+    let todo = (await checkMigration(project))?.report.todo ?? [];
+    let flags = todo.find((finding) => finding.title.startsWith("Browser flags"));
+
+    expect(flags?.where).toEqual([
+      "--use-gl=angle: only in testem.js",
+      "--disable-software-rasterizer: only in testem.cjs",
+    ]);
   });
 });
 
@@ -267,6 +303,7 @@ describe("@ember-tooling/classic-build-addon-blueprint", () => {
     expect(await read(dir, "src/utils/shout.js")).toContain(`from "./quiet.js";`);
     expect(existsSync(join(dir, "src/test-support/index.js"))).toBe(true);
     expect(await read(dir, "addon-main.cjs")).toContain("addonV1Shim");
+    expect(existsSync(join(dir, ".prettierrc.cjs"))).toBe(true);
     expect(await read(dir, "tsdown.config.js")).toContain(
       `appReexports(["components/greeting.js"])`,
     );

@@ -5,14 +5,8 @@ import { join } from "node:path";
 import { readJSON } from "#utils/fs.js";
 import { describeV1Addon, readDependencies, v1AddonsIn } from "../../addons.js";
 import { beyondEmberRolldown, readBabelConfig } from "../../babel.js";
-import {
-  filesWithExtension,
-  firstExisting,
-  listFiles,
-  matchesBlueprint,
-  remove,
-} from "../../files.js";
-import { removeToolingOfWantedLayers } from "../../layers.js";
+import { filesWithExtension, firstExisting, listFiles, remove } from "../../files.js";
+import { changedTestemFlags, removeToolingOfWantedLayers } from "../../layers.js";
 import {
   buildWithTsdown,
   entriesFor,
@@ -75,14 +69,18 @@ const REPLACED_DEV_DEPENDENCIES = [
 ];
 
 /**
- * The demo app that the blueprint generates, when it is unchanged
+ * What the blueprint's demo app has: a router without routes,
+ * and an application template with a title and a greeting.
  */
-const BLUEPRINT_DEMO_APP = {
-  "index.html": readBlueprintFile("index.html"),
-  "demo-app/app.gts": readBlueprintFile("demo-app/app.gts"),
-  "demo-app/styles.css": readBlueprintFile("demo-app/styles.css"),
-  "demo-app/templates/application.gts": readBlueprintFile("demo-app/templates/application.gts"),
-};
+const DEMO_APP_FILES = new Set([
+  "demo-app/app.gjs",
+  "demo-app/app.gts",
+  "demo-app/styles.css",
+  "demo-app/templates/application.gjs",
+  "demo-app/templates/application.gts",
+]);
+const DEMO_TEMPLATE =
+  /import\s*\{\s*pageTitle\s*\}\s*from\s*["']ember-page-title["'];?|const greeting = ["']hello["'];?|<\/?template>|\{\{pageTitle "Demo App"\}\}|<h1>Welcome to ember!<\/h1>|\{\{greeting\}\}, world!/g;
 
 /**
  * Compiler options that the blueprint's tsconfig files set.
@@ -261,15 +259,13 @@ export default {
       report.layers.push("qunit");
     }
 
-    let demo = demoApp(root);
-
-    if (demo.changed.length > 0) {
+    if (listFiles(root, "demo-app").length > 0 && !isDefaultDemoApp(root)) {
       report.todo.push({
         title: "A demo app",
-        where: demo.changed,
+        where: ["index.html", "demo-app/"],
         action:
           "Move the demo into its own app, or delete it.\n" +
-          "ember.nvp libraries have no demo app, so nothing builds or serves it.",
+          "The test build also builds index.html, so the demo must keep building until it moves.",
       });
     }
 
@@ -292,18 +288,9 @@ export default {
       });
     }
 
-    if (
-      existsSync(join(root, "testem.cjs")) &&
-      !matchesBlueprint(root, "testem.cjs", readBlueprintFile("testem.cjs"))
-    ) {
-      report.todo.push({
-        title: "testem.cjs settings of your own",
-        where: ["testem.cjs"],
-        action:
-          "Copy the settings that you still need, such as browser flags, to config/test/testem.cjs.\n" +
-          "The qunit layer's test setup reads config/test/testem.cjs.",
-      });
-    }
+    let testem = changedTestemFlags(root, "testem.cjs", "library");
+
+    if (testem) report.todo.push(testem);
 
     if (existsSync(join(root, ".try.mjs"))) {
       report.todo.push({
@@ -351,19 +338,27 @@ export default {
       });
     }
 
-    // what is left of the demo app is in the report
-    await remove(project, demoApp(root).unchanged);
+    // a demo app of your own is in the report, and keeps the resolver that it imports
+    let demo = listFiles(root, "demo-app").length > 0;
+    let defaultDemo = demo && isDefaultDemoApp(root);
 
-    let registry = "unpublished-development-types/index.d.ts";
+    if (defaultDemo) {
+      await remove(project, ["index.html", "demo-app"]);
+    }
 
-    if (matchesBlueprint(root, registry, readBlueprintFile(registry))) {
+    if (onlyComments(root, "unpublished-development-types/index.d.ts")) {
       await remove(project, ["unpublished-development-types"]);
     }
 
     // the library base writes its own
     await remove(project, ["tsconfig.json"]);
 
-    await packageJson.removeDevDependencies(REPLACED_DEV_DEPENDENCIES, root);
+    await packageJson.removeDevDependencies(
+      demo && !defaultDemo
+        ? REPLACED_DEV_DEPENDENCIES.filter((name) => name !== "ember-strict-application-resolver")
+        : REPLACED_DEV_DEPENDENCIES,
+      root,
+    );
     await packageJson.modify((json) => {
       // the old test setup's script, which the qunit layer replaces
       if (json.scripts?.test?.includes("testem")) delete json.scripts.test;
@@ -382,14 +377,6 @@ export default {
     await useEmberSourceForTests(project);
   },
 };
-
-/**
- * @param {string} file relative to the blueprint's `files/`
- * @returns {string}
- */
-function readBlueprintFile(file) {
-  return readFileSync(join(import.meta.dirname, "blueprint", file), "utf-8");
-}
 
 /**
  * The babel config that the rollup build reads.
@@ -478,34 +465,45 @@ function hasTests(root) {
 }
 
 /**
- * The demo app is index.html and demo-app/.
+ * Whether index.html and demo-app/ are still the blueprint's demo app
  *
  * @param {string} root
- * @returns {{ unchanged: string[], changed: string[] }} its files, split by whether they are still the blueprint's
  */
-function demoApp(root) {
-  /** @type {Record<string, string>} */
-  let blueprint = BLUEPRINT_DEMO_APP;
-  let files = listFiles(root, "demo-app");
-
-  if (files.length > 0 && existsSync(join(root, "index.html"))) {
-    files.unshift("index.html");
+function isDefaultDemoApp(root) {
+  for (let file of listFiles(root, "demo-app")) {
+    if (!DEMO_APP_FILES.has(file)) return false;
   }
 
-  /** @type {{ unchanged: string[], changed: string[] }} */
-  let result = { unchanged: [], changed: [] };
+  let app = firstExisting(root, ["demo-app/app.gts", "demo-app/app.gjs"]);
 
-  for (let file of files) {
-    let original = blueprint[file];
+  if (app && /this\.route\(/.test(readFileSync(join(root, app), "utf-8"))) return false;
 
-    if (original !== undefined && matchesBlueprint(root, file, original)) {
-      result.unchanged.push(file);
-    } else {
-      result.changed.push(file);
-    }
-  }
+  let template = firstExisting(root, [
+    "demo-app/templates/application.gts",
+    "demo-app/templates/application.gjs",
+  ]);
 
-  return result;
+  if (!template) return true;
+
+  return readFileSync(join(root, template), "utf-8").replace(DEMO_TEMPLATE, "").trim() === "";
+}
+
+/**
+ * @param {string} root
+ * @param {string} file
+ * @returns {boolean} whether the file has nothing but comments, like the blueprint's type registry
+ */
+function onlyComments(root, file) {
+  let path = join(root, file);
+
+  if (!existsSync(path)) return false;
+
+  return (
+    readFileSync(path, "utf-8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "")
+      .trim() === ""
+  );
 }
 
 /**

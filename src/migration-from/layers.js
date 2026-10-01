@@ -1,4 +1,6 @@
 import { packageJson } from "ember-apply";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { remove } from "./files.js";
 
 /**
@@ -107,4 +109,62 @@ export async function removeToolingOfWantedLayers(project, report) {
         "The migration removed @glint/core, which has the glint CLI.",
     });
   }
+}
+
+/**
+ * The testem config that the qunit layer writes, by project kind
+ */
+const QUNIT_TESTEM = {
+  app: join(import.meta.dirname, "../layers/qunit/files/testem.cjs"),
+  library: join(import.meta.dirname, "../layers/qunit/library-files/config/test/testem.cjs"),
+};
+
+/**
+ * Browser flags are what projects change in a testem config,
+ * for example to let Chrome render WebGL.
+ *
+ * @param {string} root
+ * @param {string} file the old testem config, which the qunit layer's config replaces
+ * @param {"app" | "library"} kind
+ * @returns {import('#types').Finding | undefined} undefined when both configs pass the same flags
+ */
+export function changedTestemFlags(root, file, kind) {
+  if (!existsSync(join(root, file))) return;
+
+  let old = browserFlags(readFileSync(join(root, file), "utf-8"));
+  let current = browserFlags(readFileSync(QUNIT_TESTEM[kind], "utf-8"));
+  let target = kind === "library" ? "config/test/testem.cjs" : "testem.cjs";
+
+  /** @type {string[]} */
+  let where = [];
+
+  for (let flag of old) {
+    if (!current.has(flag)) where.push(`${flag}: only in ${file}`);
+  }
+
+  for (let flag of current) {
+    if (!old.has(flag)) where.push(`${flag}: only in ${target}`);
+  }
+
+  if (where.length === 0) return;
+
+  return {
+    title: "Browser flags that differ in the new testem config",
+    where,
+    action: `Change the flags in ${target} to the ones that your tests need.`,
+  };
+}
+
+/**
+ * @param {string} source
+ * @returns {Set<string>} such as `--headless`, with `--headless=new` read as `--headless`
+ */
+function browserFlags(source) {
+  let flags = new Set();
+
+  for (let [, flag] of source.matchAll(/["'`](--[\w-]+(?:=[^"'`]*)?)["'`]/g)) {
+    flags.add(flag === "--headless=new" ? "--headless" : flag);
+  }
+
+  return flags;
 }

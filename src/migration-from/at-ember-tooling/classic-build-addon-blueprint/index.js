@@ -7,18 +7,16 @@ import { getLatest } from "#utils/npm.js";
 import { rewriteImportsToMatchFiles } from "#utils/rewrite-imports.js";
 import { describeV1Addon, readDependencies, v1AddonsIn } from "../../addons.js";
 import { TOOLCHAIN } from "../../app.js";
-import { BLUEPRINT_TESTEM, CUSTOM_TESTEM } from "../classic-build-app-blueprint/index.js";
 import {
   filesWithExtension,
   firstExisting,
   listFiles,
-  matchesBlueprint,
   move,
   remove,
   testsWithHbs,
 } from "../../files.js";
 import { parseProgram, propertyNames, propertyValue, stringValue, walk } from "../../javascript.js";
-import { removeToolingOfWantedLayers } from "../../layers.js";
+import { changedTestemFlags, removeToolingOfWantedLayers } from "../../layers.js";
 import {
   buildWithTsdown,
   entriesFor,
@@ -204,12 +202,9 @@ export default {
       });
     }
 
-    if (
-      existsSync(join(root, "testem.js")) &&
-      !matchesBlueprint(root, "testem.js", BLUEPRINT_TESTEM)
-    ) {
-      report.todo.push(CUSTOM_TESTEM);
-    }
+    let testem = changedTestemFlags(root, "testem.js", "library");
+
+    if (testem) report.todo.push(testem);
 
     if (listFiles(root, "blueprints").length > 0) {
       report.todo.push({
