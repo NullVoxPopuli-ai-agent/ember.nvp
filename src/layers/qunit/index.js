@@ -29,7 +29,7 @@ const tsDeps = {
  */
 const libraryDeps = {
   ...deps,
-  "@embroider/macros": "^1.20.3",
+  "@embroider/macros": "^1.21.3",
   "@nullvoxpopuli/ember-vite": "workspace:*",
   "babel-plugin-ember-template-compilation": "^4.0.0",
   vite: "^8.0.14",
