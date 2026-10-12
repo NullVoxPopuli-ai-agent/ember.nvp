@@ -2,7 +2,7 @@ import { buildMacros } from "@embroider/macros/babel";
 import { ember as embroiderEmber, extensions, resolver, templateTag } from "@embroider/vite";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import type { ConfigEnv, ResolvedConfig } from "vite";
+import type { ConfigEnv, ConfigPluginContext, ResolvedConfig, UserConfig } from "vite";
 
 import { maybeBabel } from "@nullvoxpopuli/ember-build-tooling-utils";
 
@@ -10,19 +10,30 @@ import { testHtml } from "./test-html.ts";
 
 const EMBER_CONFIG = "vite-plugin-ember-config";
 
+type ConfigHook = (
+  this: ConfigPluginContext,
+  config: UserConfig,
+  env: ConfigEnv,
+) => Promise<unknown> | unknown;
+
 /**
- * `@embroider/vite` does not export this plugin on its own.
+ * `@embroider/vite` does not export its config hook on its own.
  *
- * Its position in the list changes between releases,
+ * The position of the plugin in the list changes between releases,
  * so the name is the only stable way to find it.
  */
-function findEmberConfig() {
+function findEmberConfig(): ConfigHook {
   for (const plugin of embroiderEmber()) {
-    if (plugin.name === EMBER_CONFIG) return plugin;
+    if (plugin.name !== EMBER_CONFIG) continue;
+
+    const hook = plugin.config;
+    const handler = typeof hook === "function" ? hook : hook?.handler;
+
+    if (handler) return handler as ConfigHook;
   }
 
   throw new Error(
-    `@embroider/vite has no "${EMBER_CONFIG}" plugin. ` +
+    `@embroider/vite has no "${EMBER_CONFIG}" plugin with a config hook. ` +
       `This version of @embroider/vite is not supported by @nullvoxpopuli/ember-vite.`,
   );
 }
@@ -192,9 +203,12 @@ export function ember(nvpConfig: Config = {}) {
     {
       // no compat
       name: "ember:nullvoxpopuli",
-      async config(viteConfig: any, env: ConfigEnv) {
-        // @ts-expect-error it exists
-        await emberConfig.config(viteConfig, env);
+      async config(this: ConfigPluginContext, viteConfig: any, env: ConfigEnv) {
+        /**
+         * The hook reads the rolldown version from the plugin context,
+         * and takes its esbuild path without it.
+         */
+        await emberConfig.call(this, viteConfig, env);
 
         viteConfig.experimental ||= {};
         viteConfig.build ||= {};
