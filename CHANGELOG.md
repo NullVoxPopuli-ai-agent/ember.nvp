@@ -1,5 +1,25 @@
 # Changelog
 
+## Release (2026-10-12)
+
+* ember.nvp 1.16.0 (minor)
+* @nullvoxpopuli/ember-rolldown 2.11.0 (minor)
+* @nullvoxpopuli/ember-vite 1.3.0 (minor)
+
+#### :rocket: Enhancement
+* `@nullvoxpopuli/ember-rolldown`, `@nullvoxpopuli/ember-vite`, `ember.nvp`
+  * [#163](https://github.com/NullVoxPopuli/ember.nvp/pull/163) Update the embroider dependencies, give the config hook its plugin context ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+
+#### :bug: Bug Fix
+* `@nullvoxpopuli/ember-vite`, `ember.nvp`
+  * [#162](https://github.com/NullVoxPopuli/ember.nvp/pull/162) Find the embroider config plugin by name ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+* `@nullvoxpopuli/ember-rolldown`
+  * [#160](https://github.com/NullVoxPopuli/ember.nvp/pull/160) Fix macOS tests ([@tcjr](https://github.com/tcjr))
+
+#### Committers: 2
+- @NullVoxPopuli's reduced-access machine account for AI usage ([@NullVoxPopuli-ai-agent](https://github.com/NullVoxPopuli-ai-agent))
+- Tom Carter ([@tcjr](https://github.com/tcjr))
+
 ## Release (2026-10-02)
 
 * ember.nvp 1.15.0 (minor)
