@@ -8,7 +8,26 @@ import { maybeBabel } from "@nullvoxpopuli/ember-build-tooling-utils";
 
 import { testHtml } from "./test-html.ts";
 
-const emberConfig = embroiderEmber()[3]!;
+const EMBER_CONFIG = "vite-plugin-ember-config";
+
+/**
+ * `@embroider/vite` does not export this plugin on its own.
+ *
+ * Its position in the list changes between releases,
+ * so the name is the only stable way to find it.
+ */
+function findEmberConfig() {
+  for (const plugin of embroiderEmber()) {
+    if (plugin.name === EMBER_CONFIG) return plugin;
+  }
+
+  throw new Error(
+    `@embroider/vite has no "${EMBER_CONFIG}" plugin. ` +
+      `This version of @embroider/vite is not supported by @nullvoxpopuli/ember-vite.`,
+  );
+}
+
+const emberConfig = findEmberConfig();
 
 const cwd = process.cwd();
 function absolutePath(relativePath: string) {
