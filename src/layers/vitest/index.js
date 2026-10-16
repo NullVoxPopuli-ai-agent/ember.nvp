@@ -23,7 +23,7 @@ const deps = {
 const libraryDeps = {
   "@babel/plugin-transform-typescript": "^7.28.10",
   "@nullvoxpopuli/ember-vite": "workspace:*",
-  "babel-plugin-ember-template-compilation": "^4.0.0",
+  "babel-plugin-ember-template-compilation": "^4.0.1",
   vite: "^8.0.14",
 };
 

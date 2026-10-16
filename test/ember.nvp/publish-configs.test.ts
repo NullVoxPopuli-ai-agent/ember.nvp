@@ -126,7 +126,7 @@ describe("publish configs", () => {
 
     manifest.devDependencies["@babel/core"] = "^7.28.10";
     manifest.devDependencies["@babel/plugin-transform-typescript"] = "^7.28.10";
-    manifest.devDependencies["babel-plugin-ember-template-compilation"] = "^4.0.0";
+    manifest.devDependencies["babel-plugin-ember-template-compilation"] = "^4.0.1";
 
     await writeFile(
       join(project.directory, "package.json"),
