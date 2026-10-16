@@ -5,6 +5,7 @@ import { execa } from "execa";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+import { generateProject } from "ember.nvp";
 import type { Project } from "ember.nvp";
 
 async function installAndTest(project: Project) {
@@ -271,7 +272,8 @@ describe("layer: qunit", () => {
           "include": ["../src"],
           "compilerOptions": {
             "rootDir": "../src",
-            "isolatedDeclarations": true
+            "isolatedDeclarations": true,
+            "types": ["ember-source/types", "@glint/ember-tsc/types"]
           }
         }
         "
@@ -282,7 +284,7 @@ describe("layer: qunit", () => {
           "include": ["src", "tests"],
           "compilerOptions": {
             "lib": ["esnext", "dom", "dom.iterable"],
-            "types": ["ember-source/types", "@glint/ember-tsc/types"],
+            "types": ["ember-source/types", "@glint/ember-tsc/types", "vite/client"],
           },
           "contentMappers": [
             {
@@ -313,6 +315,31 @@ describe("layer: qunit", () => {
 
       expect(output).toContain("precompileTemplate");
       expect(output).not.toContain("createTemplateFactory");
+    });
+  });
+
+  describe("library (TypeScript), updating a project from before vite/client", () => {
+    it("adds vite/client to tsconfig.json only", async () => {
+      const project = await generate({
+        type: "library",
+        name: "my-lib",
+        layers: ["qunit", "typescript"],
+      });
+      dirs.push(project.directory);
+
+      let tsconfig = await project.read("tsconfig.json");
+      expect(tsconfig).toContain(', "vite/client"');
+      await writeFile(
+        join(project.directory, "tsconfig.json"),
+        tsconfig!.replace(', "vite/client"', ""),
+      );
+
+      await generateProject(project, "update");
+
+      expect(await project.read("tsconfig.json")).toContain(
+        '"types": ["ember-source/types", "@glint/ember-tsc/types", "vite/client"]',
+      );
+      expect(await project.read("config/tsconfig.publish.json")).not.toContain("vite/client");
     });
   });
 

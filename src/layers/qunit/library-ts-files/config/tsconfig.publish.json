@@ -3,6 +3,7 @@
   "include": ["../src"],
   "compilerOptions": {
     "rootDir": "../src",
-    "isolatedDeclarations": true
+    "isolatedDeclarations": true,
+    "types": ["ember-source/types", "@glint/ember-tsc/types"]
   }
 }

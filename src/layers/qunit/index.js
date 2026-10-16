@@ -223,7 +223,9 @@ async function syncTestBabelConfig(project, ts) {
  * Tests live outside `src`, and editors, `lint:types`, and eslint read tsconfig.json.
  * So in a TypeScript library, this layer:
  * - widens tsconfig.json to `src` and `tests`, without the publish-only settings
- * - moves those settings to `config/tsconfig.publish.json`, which the build uses
+ * - adds the `vite/client` types to tsconfig.json, because the tests build with Vite
+ * - moves the publish-only settings to `config/tsconfig.publish.json`, which the build uses.
+ *   That file keeps the library types, without `vite/client`, because `src` does not run through Vite.
  *
  * @param {import('#utils/project.js').Project} project
  */
@@ -233,18 +235,35 @@ async function usePublishTsconfig(project) {
 
   let config = await tsconfig.read(project.directory);
 
-  if (!needsWidening(config)) return;
+  if (needsWidening(config)) {
+    await tsconfig.modify((json) => {
+      json.include ||= [];
 
-  await tsconfig.modify((json) => {
-    json.include ||= [];
+      if (!json.include.includes("tests")) {
+        json.include.push("tests");
+      }
 
-    if (!json.include.includes("tests")) {
-      json.include.push("tests");
-    }
+      delete json.compilerOptions?.rootDir;
+      delete json.compilerOptions?.isolatedDeclarations;
+    }, project.directory);
+  }
 
-    delete json.compilerOptions?.rootDir;
-    delete json.compilerOptions?.isolatedDeclarations;
-  }, project.directory);
+  if (!hasViteTypes(config)) {
+    await tsconfig.modify((json) => {
+      json.compilerOptions ||= {};
+      json.compilerOptions.types ||= [];
+      json.compilerOptions.types.push(VITE_TYPES);
+    }, project.directory);
+  }
+}
+
+const VITE_TYPES = "vite/client";
+
+/**
+ * @param {Record<string, any>} config
+ */
+function hasViteTypes(config) {
+  return Boolean(config.compilerOptions?.types?.includes(VITE_TYPES));
 }
 
 /**
