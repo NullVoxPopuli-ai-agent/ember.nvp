@@ -179,7 +179,6 @@ describe("base: minimal-library", () => {
       expect(declarations).toMatchInlineSnapshot(`
         "import { TOC } from "@ember/component/template-only";
         import Component from "@glimmer/component";
-        //#region src/components/badge.d.ts
         interface BadgeSignature {
           Element: HTMLSpanElement;
           Blocks: {
@@ -187,8 +186,6 @@ describe("base: minimal-library", () => {
           };
         }
         declare const Badge: TOC<BadgeSignature>;
-        //#endregion
-        //#region src/components/greeting.d.ts
         interface GreetingSignature {
           Element: HTMLParagraphElement;
           Args: {
@@ -196,10 +193,7 @@ describe("base: minimal-library", () => {
           };
         }
         declare class Greeting extends Component<GreetingSignature> {}
-        //#endregion
-        //#region src/utils/math.d.ts
         declare function add(a: number, b: number): number;
-        //#endregion
         export { Badge, type BadgeSignature, Greeting, type GreetingSignature, add };
         //# sourceMappingURL=index.d.ts.map"
       `);

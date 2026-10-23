@@ -168,16 +168,13 @@ describe("library with ember-scoped-css", () => {
       import { precompileTemplate } from "@ember/template-compilation";
       import { setComponentTemplate } from "@ember/component";
       import templateOnly from "@ember/component/template-only";
-      //#region src/components/badge.ts
+      // src/components/badge.ts
       const Badge = setComponentTemplate(precompileTemplate("<span class=\\"badge_e1025e732\\" ...attributes>{{yield}}</span>", { strictMode: true }), templateOnly());
-      //#endregion
-      //#region src/components/banner.ts
+      // src/components/banner.ts
       const Banner = setComponentTemplate(precompileTemplate("\\n<div class=\\"banner_e88952290\\" ...attributes>{{yield}}</div>", { strictMode: true }), templateOnly());
-      //#endregion
-      //#region src/components/chip.ts
+      // src/components/chip.ts
       const chipClass = "chip_ec34dd962";
       const Chip = setComponentTemplate(precompileTemplate("<span class=\\"chip_ec34dd962\\" ...attributes></span>", { strictMode: true }), templateOnly());
-      //#endregion
       export { Badge, Banner, Chip, chipClass };
 
       //# sourceMappingURL=index.js.map"

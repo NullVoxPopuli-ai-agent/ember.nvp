@@ -50,10 +50,10 @@ async function listDist(project: Project) {
 }
 
 /**
- * The bundled chunk's own imports are hoisted above its first region marker.
+ * The bundled chunk's own imports are hoisted to its first lines.
  *
- * ember-source's doc comments below it also start lines with `import`,
- * so only that head is inspected.
+ * ember-source's doc comments further down also start lines with `import`,
+ * so only the leading import lines count.
  */
 async function chunkImports(project: Project) {
   let files = await listFiles(join(project.directory, "dist"));
@@ -62,9 +62,17 @@ async function chunkImports(project: Project) {
   expect(chunk).toBeDefined();
 
   let code = (await project.read(`dist/${chunk}`)) ?? "";
-  let head = code.split("//#region")[0] ?? "";
+  let imports: string[] = [];
 
-  return head.match(/^import .*$/gm) ?? [];
+  for (let line of code.split("\n")) {
+    if (line.startsWith("import ")) {
+      imports.push(line);
+    } else if (line.trim() !== "") {
+      break;
+    }
+  }
+
+  return imports;
 }
 
 /**
