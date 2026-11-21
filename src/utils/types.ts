@@ -149,6 +149,11 @@ export interface MigrationReport {
    * The CLI selects them by default.
    */
   layers: string[];
+  /**
+   * Changes to the files that the layers write, such as the app's own test setup in tests/test-helper.
+   * They run once, after the first pass of the layers.
+   */
+  afterLayers?: ((project: Project) => Promise<void>)[];
 }
 
 /**

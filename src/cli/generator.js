@@ -31,6 +31,10 @@ export async function generateProject(project, replaceOrUpdate) {
    */
   await runLap(project);
 
+  for (let step of migration?.report.afterLayers ?? []) {
+    await step(project);
+  }
+
   if (hasGit(project.directory)) {
     await project.gitAdd();
 

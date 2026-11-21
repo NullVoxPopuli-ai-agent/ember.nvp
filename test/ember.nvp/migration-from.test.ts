@@ -14,7 +14,8 @@ import {
 } from "#migration-from";
 import { Project } from "#utils/project.js";
 import { generateProject } from "ember.nvp";
-import { cli, generate, mktemp } from "#test-helpers";
+import { listFiles } from "../../src/migration-from/files.js";
+import { cli, generate, layers, mktemp } from "#test-helpers";
 import type { ProjectType } from "#types";
 import {
   addonBlueprint,
@@ -334,6 +335,10 @@ export default defineConfig({
 
           if (process.env.EMBER_ENV === "test") {
             config.enableRuntimeMode();
+            /**
+             * Addons check \`isTesting()\` when their modules load, before tests/test-helper calls \`setTesting(true)\`.
+             */
+            config.setGlobalConfig(import.meta.filename, "@embroider/macros", { isTesting: true });
           }
         },
       });
@@ -506,6 +511,112 @@ export default defineConfig({
       import { setup } from '../helpers';
       "
     `);
+  });
+
+  it("keeps the app's own router.js, without a router.ts from the base", async () => {
+    /**
+     * From rust-lang/crates.io: `import.meta.glob("./router.*")` picked up both files.
+     */
+    let dir = await fixture("app-blueprint", {
+      "app/router.js": `import EmberRouter from '@ember/routing/router';
+
+export default class Router extends EmberRouter {}
+
+Router.map(function () {
+  this.route('crates');
+});
+`,
+    });
+
+    await rm(join(dir, "app/router.ts"));
+
+    await migrate(dir, "app", ["typescript", "qunit"]);
+
+    expect(listFiles(dir, "app").filter((file) => /router/.test(file))).toMatchInlineSnapshot(`
+      [
+        "app/router.js",
+      ]
+    `);
+  });
+
+  it("keeps the app's own test setup in the qunit layer's test-helper", async () => {
+    /**
+     * From rust-lang/crates.io, after ember-upgrade, shortened.
+     */
+    let dir = await fixture("app-blueprint", {
+      "tests/test-helper.js": `import { setApplication } from '@ember/test-helpers';
+import { start as qunitStart, setupEmberOnerrorValidation } from 'ember-qunit';
+import * as QUnit from 'qunit';
+import { setup } from 'qunit-dom';
+
+import Application from '../app';
+import config from '../config/environment';
+import registerMatchJsonAssertion from './helpers/match-json';
+import { registerQUnitCallbacks } from './helpers/setup-msw';
+import './vendor/qunit.css';
+
+export function start() {
+  setup(QUnit.assert);
+  registerMatchJsonAssertion(QUnit.assert);
+  registerQUnitCallbacks(QUnit);
+
+  setApplication(Application.create(config.APP));
+
+  setupEmberOnerrorValidation();
+  qunitStart();
+}
+`,
+    });
+
+    await rm(join(dir, "tests/test-helper.ts"), { force: true });
+
+    let { name } = await packageJson.read(dir);
+    let { todo } = await generateProject(
+      new Project(dir, {
+        name,
+        type: "app",
+        path: dir,
+        layers: layers.filter((layer) => layer.name === "qunit"),
+        packageManager: "pnpm",
+      }),
+    );
+
+    expect(await read(dir, "tests/test-helper.js")).toMatchInlineSnapshot(`
+      "import { getOwner } from '@ember/owner';
+      import { currentRouteName, currentURL, getSettledState, resetOnerror, setApplication, visit } from '@ember/test-helpers';
+      import { getPendingWaiterState } from '@ember/test-waiters';
+      import * as QUnit from 'qunit';
+      import { setup } from 'qunit-dom';
+      import { setupEmberOnerrorValidation, start as qunitStart } from 'ember-qunit';
+      import { setTesting } from '@embroider/macros';
+      import Application from "#app/app.js";
+      import config from '#config';
+      import registerMatchJsonAssertion from './helpers/match-json';
+      import { registerQUnitCallbacks } from './helpers/setup-msw';
+      import './vendor/qunit.css';
+      Object.assign(window, { visit, getSettledState, getPendingWaiterState, currentURL, currentRouteName, getOwner, snapshotTimers: (label) => {
+        console.debug(label ?? 'snapshotTimers', JSON.parse(JSON.stringify({ settled: getSettledState(), waiters: getPendingWaiterState() })));
+      } });
+      export function start() {
+        config.locationType = 'none';
+        config.APP.rootElement = '#ember-testing';
+        config.APP.autoboot = false;
+        setTesting(true);
+        setApplication(Application.create(config.APP));
+        setup(QUnit.assert);
+        setupEmberOnerrorValidation();
+        QUnit.moduleStart(({ name }) => console.group(name));
+        QUnit.testStart(({ name }) => console.group(name));
+        QUnit.testDone(() => console.groupEnd());
+        QUnit.moduleDone(() => console.groupEnd());
+        QUnit.testDone(resetOnerror);
+        registerMatchJsonAssertion(QUnit.assert);
+        registerQUnitCallbacks(QUnit);
+
+        qunitStart();
+      }"
+    `);
+    expect(todo.map((finding) => finding.title)).not.toContain("Test setup of your own");
   });
 
   it("imports the config of the app's own code from #config", async () => {
