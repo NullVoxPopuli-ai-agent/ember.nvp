@@ -6,6 +6,10 @@ const macros = buildMacros({
   configure(config) {
     if (process.env.EMBER_ENV === "test") {
       config.enableRuntimeMode();
+      /**
+       * Addons check `isTesting()` when their modules load, before tests/test-helper calls `setTesting(true)`.
+       */
+      config.setGlobalConfig(import.meta.filename, "@embroider/macros", { isTesting: true });
     }
   },
 });
